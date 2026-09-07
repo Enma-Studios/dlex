@@ -1,10 +1,15 @@
 # Dlex
 
 [![Hex pm](http://img.shields.io/hexpm/v/dlex.svg?style=flat)](https://hex.pm/packages/dlex)
-[![CircleCI](https://circleci.com/gh/liveforeverx/dlex.svg?style=svg)](https://circleci.com/gh/liveforeverx/dlex)
+[![CircleCI](https://circleci.com/gh/Enma-Studios/dlex.svg?style=svg)](https://circleci.com/gh/Enma-Studios/dlex)
 
 Dlex is a gRPC based client for the [Dgraph](https://github.com/dgraph-io/dgraph) database in Elixir.
 It uses the [DBConnection](https://hexdocs.pm/db_connection/DBConnection.html) behaviour to support transactions and connection pooling.
+
+This repository is an actively maintained port of the original Dlex project for the Enma Studios
+organization. The source is hosted at [Enma-Studios/dlex](https://github.com/Enma-Studios/dlex).
+API documentation is published automatically to [GitHub Pages](https://enma-studios.github.io/dlex/)
+by GitHub Actions.
 
 Small, efficient codebase. Aims for full Dgraph support. Supports transactions, delete mutations and low-level parameterized queries. The integration suite targets Dgraph `v25.4.0`.
 
@@ -12,8 +17,8 @@ Supports the Dgraph [Type System](https://docs.dgraph.io/master/query-language/#
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `dlex` to your list of dependencies in `mix.exs`:
+This port is installed directly from GitHub by adding `dlex` to your list of dependencies in
+`mix.exs`:
 
 Preferred and more performant option is to use `grpc`:
 
@@ -21,7 +26,7 @@ Preferred and more performant option is to use `grpc`:
 def deps do
   [
     {:jason, "~> 1.0"},
-    {:dlex, "~> 0.5.0"}
+    {:dlex, github: "Enma-Studios/dlex"}
   ]
 end
 ```
@@ -33,8 +38,8 @@ def deps do
   [
     {:jason, "~> 1.0"},
     {:castore, "~> 0.1.0", optional: true},
-    {:mint, github: "ericmj/mint", branch: "master"},
-    {:dlex, "~> 0.5.0"}
+    {:mint, "~> 1.9"},
+    {:dlex, github: "Enma-Studios/dlex"}
   ]
 end
 ```
