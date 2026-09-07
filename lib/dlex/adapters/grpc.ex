@@ -17,8 +17,10 @@ defmodule Dlex.Adapters.GRPC do
   end
 
   defp gen_stub_options(opts) do
-    adapter_opts = %{http2_opts: %{keepalive: opts[:keepalive]}}
-    stub_opts = [adapter_opts: adapter_opts]
+    stub_opts = [
+      adapter: GRPC.Client.Adapters.Mint,
+      adapter_opts: [retry: 5]
+    ]
 
     case gen_ssl_config(opts) do
       {:ok, nil} -> {:ok, stub_opts}
@@ -61,7 +63,7 @@ defmodule Dlex.Adapters.GRPC do
   @impl true
   def ping(channel) do
     # check if the server is up and wait 5s seconds before disconnect
-    case ApiStub.check_version(channel, Check.new(), timeout: 5_000) do
+    case ApiStub.check_version(channel, %Check{}, timeout: 5_000) do
       {:ok, _} -> {:ok, channel}
       {:error, reason} -> {:error, reason}
       _ -> :ok

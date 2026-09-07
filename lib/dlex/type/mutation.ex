@@ -29,11 +29,11 @@ defmodule Dlex.Type.Mutation do
     %Query{statement: mutations, query: query, txn_context: txn, json: json} = query
     {commit, start_ts} = transaction_opts(txn)
 
-    Request.new(
+    struct(Request,
       commit_now: commit,
       start_ts: start_ts,
       mutations: mutations(mutations, json),
-      query: query,
+      query: IO.iodata_to_binary(query),
       vars: Utils.encode_vars(vars)
     )
   end
@@ -46,7 +46,7 @@ defmodule Dlex.Type.Mutation do
           {mutation_key(type, key), format(type, value, json)}
         end
 
-      Mutation.new(mutation_opts)
+      struct(Mutation, mutation_opts)
     end
   end
 

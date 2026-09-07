@@ -48,15 +48,25 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     @impl true
     def alter(channel, request, json_lib, opts) do
+      {headers, body} = alter_body(request, json_lib)
+
       request = %Request{
         action: :alter,
         start_ts: 0,
         json: json_lib,
-        headers: [],
-        body: request |> Map.from_struct() |> json_lib.encode!()
+        headers: headers,
+        body: body
       }
 
       handle_request(channel, request, opts)
+    end
+
+    defp alter_body(%{schema: schema}, _json_lib) when schema not in [nil, ""] do
+      {content_type(:nquads), schema}
+    end
+
+    defp alter_body(request, json_lib) do
+      {content_type(:json), request |> Map.from_struct() |> json_lib.encode!()}
     end
 
     @impl true
@@ -249,15 +259,15 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp parse_success(:alter, %{"data" => data}) do
-      Dlex.Api.Payload.new(Data: data)
+      struct(Dlex.Api.Payload, Data: data)
     end
 
     defp parse_success(:mutate, %{"data" => %{"uids" => uids, "queries" => queries}} = response) do
-      Dlex.Api.Response.new(txn: parse_txn(response), uids: uids, json: queries)
+      struct(Dlex.Api.Response, txn: parse_txn(response), uids: uids, json: queries)
     end
 
     defp parse_success(:query, %{"data" => data} = response) do
-      Dlex.Api.Response.new(txn: parse_txn(response), json: data)
+      struct(Dlex.Api.Response, txn: parse_txn(response), json: data)
     end
 
     defp parse_success(:commit, response) do
@@ -267,7 +277,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp parse_txn(json, aborted \\ false)
 
     defp parse_txn(%{"extensions" => %{"txn" => txn}}, aborted) do
-      Dlex.Api.TxnContext.new(
+      struct(Dlex.Api.TxnContext,
         start_ts: Map.get(txn, "start_ts", 0),
         commit_ts: Map.get(txn, "commit_ts", 0),
         aborted: aborted || Map.get(txn, "aborted", false),
@@ -277,10 +287,13 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp parse_txn(_, aborted) do
-      Dlex.Api.TxnContext.new(aborted: aborted)
+      struct(Dlex.Api.TxnContext, aborted: aborted)
     end
 
-    defp parse_error([%{"message" => message} | _]), do: message
+    defp parse_error([%{"message" => message} | _]) do
+      Regex.replace(~r/^rpc error: code = \w+ desc = /, message, "")
+    end
+
     defp parse_error(errors), do: inspect(errors)
 
     ## HTTP Client implementation

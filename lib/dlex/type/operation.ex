@@ -30,7 +30,7 @@ defmodule Dlex.Type.Operation do
   @impl true
   def encode(%Query{statement: statement}, _, _) do
     %{drop_all: drop_all, schema: schema, drop_attr: drop_attr} = statement
-    Operation.new(drop_all: drop_all, schema: encode_schema(schema), drop_attr: drop_attr)
+    struct(Operation, drop_all: drop_all, schema: encode_schema(schema), drop_attr: drop_attr)
   end
 
   @impl true

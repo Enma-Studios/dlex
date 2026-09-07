@@ -63,7 +63,7 @@ defmodule Dlex.Protocol do
 
   @impl true
   def handle_begin(_opts, state) do
-    {:ok, nil, %{state | txn_context: TxnContext.new(), txn_aborted?: false}}
+    {:ok, nil, %{state | txn_context: %TxnContext{}, txn_aborted?: false}}
   end
 
   @impl true
