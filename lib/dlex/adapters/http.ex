@@ -71,21 +71,30 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     @impl true
     def mutate(channel, request, json_lib, opts) do
-      %{mutations: [mutation | _] = mutations, start_ts: start_ts, query: query, vars: variables} =
-        request
+      if request.resp_format == :RDF do
+        {:error, %Error{message: "RDF responses require the gRPC transport"}}
+      else
+        %{
+          mutations: [mutation | _] = mutations,
+          start_ts: start_ts,
+          query: query,
+          vars: variables
+        } =
+          request
 
-      type = mutation_type(mutation)
+        type = mutation_type(mutation)
 
-      request = %Request{
-        action: :mutate,
-        start_ts: start_ts,
-        commit_now: request.commit_now,
-        json: json_lib,
-        headers: content_type(type),
-        body: build_mutations(mutations, type, json_lib, query, variables)
-      }
+        request = %Request{
+          action: :mutate,
+          start_ts: start_ts,
+          commit_now: request.commit_now,
+          json: json_lib,
+          headers: content_type(type),
+          body: build_mutations(mutations, type, json_lib, query, variables)
+        }
 
-      handle_request(channel, request, opts)
+        handle_request(channel, request, opts)
+      end
     end
 
     defp build_mutations([mutation], :json, json_lib, query, variables) do
@@ -164,25 +173,29 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     @impl true
     def query(channel, request, json_lib, opts) do
-      %{
-        start_ts: start_ts,
-        vars: vars,
-        query: query,
-        read_only: read_only,
-        best_effort: best_effort
-      } = request
+      if request.resp_format == :RDF do
+        {:error, %Error{message: "RDF responses require the gRPC transport"}}
+      else
+        %{
+          start_ts: start_ts,
+          vars: vars,
+          query: query,
+          read_only: read_only,
+          best_effort: best_effort
+        } = request
 
-      request = %Request{
-        action: :query,
-        start_ts: start_ts,
-        json: json_lib,
-        headers: content_type(:json),
-        body: json_lib.encode!(%{"variables" => vars, "query" => to_string(query)}),
-        read_only: read_only,
-        best_effort: best_effort
-      }
+        request = %Request{
+          action: :query,
+          start_ts: start_ts,
+          json: json_lib,
+          headers: content_type(:json),
+          body: json_lib.encode!(%{"variables" => vars, "query" => to_string(query)}),
+          read_only: read_only,
+          best_effort: best_effort
+        }
 
-      handle_request(channel, request, opts)
+        handle_request(channel, request, opts)
+      end
     end
 
     @impl true

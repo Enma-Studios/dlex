@@ -21,6 +21,8 @@ defmodule Dlex do
           optional(:delete) => statement()
         }
   @type mutations :: [mutation]
+  @type response_format :: :json | :rdf
+  @type lease_type :: :uid | :timestamp | :namespace
 
   @timeout 15_000
   @default_keepalive :infinity
@@ -254,6 +256,8 @@ defmodule Dlex do
   ## Options
 
     * `:timeout` - Call timeout (default: `#{@timeout}`)
+    * `:resp_format` - `:json` or `:rdf` (gRPC transport)
+    * `:return_metadata` - include latency and UID metrics (gRPC transport)
   """
 
   @spec mutate(conn, query_map, mutations, Keyword.t()) ::
@@ -420,6 +424,8 @@ defmodule Dlex do
 
       * `best_effort` - `boolean`
       * `read_only` - `boolean`
+      * `resp_format` - `:json` or `:rdf` (gRPC transport)
+      * `return_metadata` - include latency and UID metrics (gRPC transport)
   """
   @spec query(conn, iodata, map, Keyword.t()) :: {:ok, map} | {:error, Dlex.Error.t() | term}
   def query(conn, statement, parameters \\ %{}, opts \\ []) do
@@ -446,6 +452,9 @@ defmodule Dlex do
 
   This operation is available through the gRPC transport. Use `resp_format: :rdf` to receive
   the RDF response body, or `return_metadata: true` to include latency and UID metrics.
+
+  Options include `:best_effort`, `:read_only`, `:resp_format`, `:return_metadata`, and the
+  standard DBConnection `:timeout` option.
   """
   @spec run_dql(conn, iodata, map, Keyword.t()) :: {:ok, term} | {:error, Dlex.Error.t() | term}
   def run_dql(conn, statement, vars \\ %{}, opts \\ []) do
@@ -476,7 +485,7 @@ defmodule Dlex do
 
   `lease_type` may be `:uid`, `:timestamp`, or `:namespace`.
   """
-  @spec allocate_ids(conn, pos_integer, atom, Keyword.t()) ::
+  @spec allocate_ids(conn, pos_integer, lease_type, Keyword.t()) ::
           {:ok, map} | {:error, Dlex.Error.t() | term}
   def allocate_ids(conn, how_many, lease_type \\ :uid, opts \\ []) do
     request = %Api.AllocateIDsRequest{
@@ -490,6 +499,7 @@ defmodule Dlex do
   @doc """
   Allocate IDs and raise on failure.
   """
+  @spec allocate_ids!(conn, pos_integer, lease_type, Keyword.t()) :: map | no_return
   def allocate_ids!(conn, how_many, lease_type \\ :uid, opts \\ []) do
     case allocate_ids(conn, how_many, lease_type, opts) do
       {:ok, result} -> result
@@ -500,10 +510,15 @@ defmodule Dlex do
   @doc """
   Create a Dgraph namespace.
   """
+  @spec create_namespace(conn, Keyword.t()) :: {:ok, map} | {:error, Dlex.Error.t() | term}
   def create_namespace(conn, opts \\ []) do
     admin(conn, :create_namespace, %Api.CreateNamespaceRequest{}, opts)
   end
 
+  @doc """
+  Create a Dgraph namespace and raise on failure.
+  """
+  @spec create_namespace!(conn, Keyword.t()) :: map | no_return
   def create_namespace!(conn, opts \\ []) do
     case create_namespace(conn, opts) do
       {:ok, result} -> result
@@ -514,10 +529,16 @@ defmodule Dlex do
   @doc """
   Drop a Dgraph namespace.
   """
+  @spec drop_namespace(conn, non_neg_integer, Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
   def drop_namespace(conn, namespace, opts \\ []) do
     admin(conn, :drop_namespace, %Api.DropNamespaceRequest{namespace: namespace}, opts)
   end
 
+  @doc """
+  Drop a Dgraph namespace and raise on failure.
+  """
+  @spec drop_namespace!(conn, non_neg_integer, Keyword.t()) :: map | no_return
   def drop_namespace!(conn, namespace, opts \\ []) do
     case drop_namespace(conn, namespace, opts) do
       {:ok, result} -> result
@@ -528,10 +549,15 @@ defmodule Dlex do
   @doc """
   List Dgraph namespaces.
   """
+  @spec list_namespaces(conn, Keyword.t()) :: {:ok, map} | {:error, Dlex.Error.t() | term}
   def list_namespaces(conn, opts \\ []) do
     admin(conn, :list_namespaces, %Api.ListNamespacesRequest{}, opts)
   end
 
+  @doc """
+  List Dgraph namespaces and raise on failure.
+  """
+  @spec list_namespaces!(conn, Keyword.t()) :: map | no_return
   def list_namespaces!(conn, opts \\ []) do
     case list_namespaces(conn, opts) do
       {:ok, result} -> result

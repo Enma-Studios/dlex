@@ -110,6 +110,14 @@ defmodule DlexTest do
     assert %{} = Dlex.drop_namespace!(pid, namespace)
   end
 
+  @tag :http
+  test "HTTP rejects RDF response format", %{pid: pid} do
+    assert {:error, %Dlex.Error{reason: %Dlex.Adapters.HTTP.Error{message: message}}} =
+             Dlex.query(pid, "{ health(func: has(name)) { uid } }", %{}, resp_format: :rdf)
+
+    assert message == "RDF responses require the gRPC transport"
+  end
+
   test "mutation nquads", %{pid: pid} do
     assert %{uids: %{"luke" => uid_luke, "leia" => _uid_leia, "sw1" => _uid_sw1}} =
              Dlex.set!(pid, @mutation_nquads)
