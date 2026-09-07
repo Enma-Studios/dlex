@@ -8,7 +8,7 @@ defmodule Dlex.Query do
         }
 
   @type t :: %__MODULE__{
-          type: Dlex.Type.Alter | Dlex.Type.Mutation | Dlex.Type.Query,
+          type: Dlex.Type.Alter | Dlex.Type.Mutation | Dlex.Type.Query | Dlex.Type.Admin,
           query: String.t(),
           statement: [mutation] | map | iodata,
           parameters: any,

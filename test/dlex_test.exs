@@ -81,6 +81,35 @@ defmodule DlexTest do
            } = Dlex.set!(pid, @mutation_json, return_json: true)
   end
 
+  @tag :grpc
+  test "v25 run dql and response metadata", %{pid: pid} do
+    %{uids: %{"v25_feature" => uid}} =
+      Dlex.set!(pid, ~s|_:v25_feature <name> "v25 feature" .|)
+
+    assert %{"feature" => [%{"uid" => ^uid}]} =
+             Dlex.run_dql!(pid, "{ feature(func: uid(#{uid})) { uid } }")
+
+    assert {:ok, %{result: %{"feature" => _}, metadata: %{latency: _, metrics: _}}} =
+             Dlex.run_dql(pid, "{ feature(func: uid(#{uid})) { uid } }", %{},
+               return_metadata: true
+             )
+
+    assert is_binary(
+             Dlex.run_dql!(pid, "{ feature(func: uid(#{uid})) { uid } }", %{}, resp_format: :rdf)
+           )
+  end
+
+  @tag :grpc
+  test "v25 id allocation and namespace management", %{pid: pid} do
+    assert %{start: start_id, end: end_id} = Dlex.allocate_ids!(pid, 2)
+    assert end_id - start_id == 1
+
+    assert %{namespace: namespace} = Dlex.create_namespace!(pid)
+    assert %{namespaces: namespaces} = Dlex.list_namespaces!(pid)
+    assert %{^namespace => %{id: ^namespace}} = namespaces
+    assert %{} = Dlex.drop_namespace!(pid, namespace)
+  end
+
   test "mutation nquads", %{pid: pid} do
     assert %{uids: %{"luke" => uid_luke, "leia" => _uid_leia, "sw1" => _uid_sw1}} =
              Dlex.set!(pid, @mutation_nquads)

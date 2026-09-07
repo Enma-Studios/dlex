@@ -14,6 +14,7 @@ defmodule Dlex.Adapter do
   @type conn :: term()
   @type opts :: keyword()
   @type transaction :: %{}
+  @type operation :: atom
   @type request :: %{}
   @type json_lib :: module()
   @type result :: %{}
@@ -25,6 +26,7 @@ defmodule Dlex.Adapter do
   @callback alter(conn, request, json_lib, opts) :: {:ok, result} | {:error, term}
   @callback mutate(conn, request, json_lib, opts) :: {:ok, result} | {:error, term}
   @callback query(conn, request, json_lib, opts) :: {:ok, result} | {:error, term}
+  @callback admin(conn, operation, request, json_lib, opts) :: {:ok, result} | {:error, term}
   @callback commit_or_abort(conn, transaction, json_lib, opts) ::
               {:ok, transaction} | {:error, term}
 
@@ -40,6 +42,9 @@ defmodule Dlex.Adapter do
 
   def query(adapter, conn, request, json_lib, opts),
     do: adapter.query(conn, request, json_lib, opts)
+
+  def admin(adapter, conn, operation, request, json_lib, opts),
+    do: adapter.admin(conn, operation, request, json_lib, opts)
 
   def commit_or_abort(adapter, conn, request, json_lib, opts),
     do: adapter.commit_or_abort(conn, request, json_lib, opts)

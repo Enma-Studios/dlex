@@ -7,6 +7,8 @@ defmodule Dlex do
   """
 
   alias Dlex.{Query, Type}
+  alias Dlex.Api
+  alias Dlex.Utils
 
   @type conn :: DBConnection.conn()
   @type uid :: String.t()
@@ -438,6 +440,124 @@ defmodule Dlex do
       {:error, err} -> raise err
     end
   end
+
+  @doc """
+  Execute DQL through Dgraph's v25 `RunDQL` API.
+
+  This operation is available through the gRPC transport. Use `resp_format: :rdf` to receive
+  the RDF response body, or `return_metadata: true` to include latency and UID metrics.
+  """
+  @spec run_dql(conn, iodata, map, Keyword.t()) :: {:ok, term} | {:error, Dlex.Error.t() | term}
+  def run_dql(conn, statement, vars \\ %{}, opts \\ []) do
+    request = %Api.RunDQLRequest{
+      dql_query: IO.iodata_to_binary(statement),
+      vars: Utils.encode_vars(vars),
+      read_only: Keyword.get(opts, :read_only, false),
+      best_effort: Keyword.get(opts, :best_effort, false),
+      resp_format: response_format(Keyword.get(opts, :resp_format, :json))
+    }
+
+    admin(conn, :run_dql, request, opts)
+  end
+
+  @doc """
+  Execute `run_dql/4` and raise on failure.
+  """
+  @spec run_dql!(conn, iodata, map, Keyword.t()) :: term | no_return
+  def run_dql!(conn, statement, vars \\ %{}, opts \\ []) do
+    case run_dql(conn, statement, vars, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Allocate a range of IDs from Dgraph.
+
+  `lease_type` may be `:uid`, `:timestamp`, or `:namespace`.
+  """
+  @spec allocate_ids(conn, pos_integer, atom, Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def allocate_ids(conn, how_many, lease_type \\ :uid, opts \\ []) do
+    request = %Api.AllocateIDsRequest{
+      how_many: how_many,
+      lease_type: lease_type(lease_type)
+    }
+
+    admin(conn, :allocate_ids, request, opts)
+  end
+
+  @doc """
+  Allocate IDs and raise on failure.
+  """
+  def allocate_ids!(conn, how_many, lease_type \\ :uid, opts \\ []) do
+    case allocate_ids(conn, how_many, lease_type, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Create a Dgraph namespace.
+  """
+  def create_namespace(conn, opts \\ []) do
+    admin(conn, :create_namespace, %Api.CreateNamespaceRequest{}, opts)
+  end
+
+  def create_namespace!(conn, opts \\ []) do
+    case create_namespace(conn, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Drop a Dgraph namespace.
+  """
+  def drop_namespace(conn, namespace, opts \\ []) do
+    admin(conn, :drop_namespace, %Api.DropNamespaceRequest{namespace: namespace}, opts)
+  end
+
+  def drop_namespace!(conn, namespace, opts \\ []) do
+    case drop_namespace(conn, namespace, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  List Dgraph namespaces.
+  """
+  def list_namespaces(conn, opts \\ []) do
+    admin(conn, :list_namespaces, %Api.ListNamespacesRequest{}, opts)
+  end
+
+  def list_namespaces!(conn, opts \\ []) do
+    case list_namespaces(conn, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  defp admin(conn, operation, request, opts) do
+    query = %Query{
+      type: Type.Admin,
+      statement: %{operation: operation, request: request}
+    }
+
+    with {:ok, _, result} <- DBConnection.prepare_execute(conn, query, %{}, opts),
+         do: {:ok, result}
+  end
+
+  defp response_format(:rdf), do: :RDF
+  defp response_format(:json), do: :JSON
+  defp response_format(:RDF), do: :RDF
+  defp response_format(:JSON), do: :JSON
+
+  defp lease_type(:uid), do: :UID
+  defp lease_type(:timestamp), do: :TS
+  defp lease_type(:namespace), do: :NS
+  defp lease_type(type) when type in [:UID, :TS, :NS], do: type
 
   @doc """
   Query schema of dgraph

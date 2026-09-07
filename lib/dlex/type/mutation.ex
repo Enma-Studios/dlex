@@ -3,6 +3,7 @@ defmodule Dlex.Type.Mutation do
 
   alias Dlex.{Adapter, Query, Utils}
   alias Dlex.Api.{Response, Mutation, Request}
+  alias Dlex.Type.Admin
 
   @behaviour Dlex.Type
 
@@ -25,7 +26,7 @@ defmodule Dlex.Type.Mutation do
   def describe(query, _opts), do: query
 
   @impl true
-  def encode(query, vars, _opts) do
+  def encode(query, vars, opts) do
     %Query{statement: mutations, query: query, txn_context: txn, json: json} = query
     {commit, start_ts} = transaction_opts(txn)
 
@@ -34,7 +35,8 @@ defmodule Dlex.Type.Mutation do
       start_ts: start_ts,
       mutations: mutations(mutations, json),
       query: IO.iodata_to_binary(query),
-      vars: Utils.encode_vars(vars)
+      vars: Utils.encode_vars(vars),
+      resp_format: response_format(Keyword.get(opts, :resp_format, :json))
     )
   end
 
@@ -75,10 +77,22 @@ defmodule Dlex.Type.Mutation do
   @impl true
   def decode(
         %Query{statement: statement, json: json_lib, type: Dlex.Type.Mutation} = _query,
-        %Response{uids: uids, json: json} = _result,
+        %Response{uids: uids, json: json} = response,
         opts
       ) do
     result = %{uids: uids, queries: parse_json(json_lib, json)}
+
+    result =
+      if opts[:resp_format] == :rdf do
+        Map.put(result, :rdf, response.rdf || <<>>)
+      else
+        result
+      end
+
+    result =
+      if opts[:return_metadata],
+        do: %{result: result, metadata: Admin.metadata(response)},
+        else: result
 
     if opts[:return_json] do
       [mutation] = statement
@@ -89,4 +103,9 @@ defmodule Dlex.Type.Mutation do
       result
     end
   end
+
+  defp response_format(:rdf), do: :RDF
+  defp response_format(:json), do: :JSON
+  defp response_format(:RDF), do: :RDF
+  defp response_format(:JSON), do: :JSON
 end

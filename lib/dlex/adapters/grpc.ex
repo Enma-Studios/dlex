@@ -86,6 +86,22 @@ defmodule Dlex.Adapters.GRPC do
   end
 
   @impl true
+  def admin(channel, :run_dql, request, _json_lib, opts),
+    do: ApiStub.run_dql(channel, request, opts)
+
+  def admin(channel, :allocate_ids, request, _json_lib, opts),
+    do: ApiStub.allocate_i_ds(channel, request, opts)
+
+  def admin(channel, :create_namespace, request, _json_lib, opts),
+    do: ApiStub.create_namespace(channel, request, opts)
+
+  def admin(channel, :drop_namespace, request, _json_lib, opts),
+    do: ApiStub.drop_namespace(channel, request, opts)
+
+  def admin(channel, :list_namespaces, request, _json_lib, opts),
+    do: ApiStub.list_namespaces(channel, request, opts)
+
+  @impl true
   def commit_or_abort(channel, transaction, _json_lib, opts) do
     ApiStub.commit_or_abort(channel, transaction, opts)
   end

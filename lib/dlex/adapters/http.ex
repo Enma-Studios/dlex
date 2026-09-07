@@ -186,6 +186,11 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     @impl true
+    def admin(_channel, _operation, _request, _json_lib, _opts) do
+      {:error, %Error{message: "This Dgraph operation requires the gRPC transport"}}
+    end
+
+    @impl true
     def commit_or_abort(channel, %{start_ts: start_ts, keys: keys}, json_lib, opts) do
       request = %Request{
         action: :commit,
