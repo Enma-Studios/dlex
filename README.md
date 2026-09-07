@@ -71,15 +71,20 @@ Dlex.delete(conn, %{"uid" => uid})
 
 ### Dgraph v25 APIs
 
-The v25 gRPC API is available through the following helpers:
+The v25 gRPC API is available through the following helpers. Each helper has a bang variant
+(`run_dql!`, `allocate_ids!`, `create_namespace!`, `drop_namespace!`, and
+`list_namespaces!`) that returns the result directly and raises on failure:
 
 ```elixir
-# Execute DQL and optionally request RDF or response metadata
+# Execute DQL as JSON (the default)
 Dlex.run_dql(conn, "{ users(func: has(name)) { uid name } }")
+
+# Request RDF and response metadata
 Dlex.run_dql(conn, "{ users(func: has(name)) { uid name } }", %{},
   resp_format: :rdf,
   return_metadata: true
 )
+# => {:ok, %{result: "...", metadata: %{latency: ..., metrics: ...}}}
 
 # Allocate IDs and manage namespaces
 Dlex.allocate_ids!(conn, 100, :uid)
@@ -89,6 +94,24 @@ Dlex.drop_namespace!(conn, namespace)
 ```
 
 These administrative operations require the gRPC transport. The HTTP transport continues to support queries, mutations, schema alterations, and transaction commits.
+
+The `:resp_format` option accepts `:json` or `:rdf`; `:return_metadata` adds latency and UID
+metrics to the result. Both options are available on `query/4`, `mutate/4`, and `run_dql/4`, but
+RDF responses require gRPC. HTTP requests using `resp_format: :rdf` return an error.
+
+For example, the same response options can be used with a query or mutation:
+
+```elixir
+Dlex.query(conn, "{ users(func: has(name)) { uid name } }", %{},
+  resp_format: :rdf,
+  return_metadata: true
+)
+
+Dlex.mutate(conn, %{"name" => "Alice"},
+  resp_format: :rdf,
+  return_metadata: true
+)
+```
 
 ### Alter schema
 
