@@ -69,6 +69,27 @@ Dlex.query(conn, by_name, %{"$name" => "Betty"})
 Dlex.delete(conn, %{"uid" => uid})
 ```
 
+### Dgraph v25 APIs
+
+The v25 gRPC API is available through the following helpers:
+
+```elixir
+# Execute DQL and optionally request RDF or response metadata
+Dlex.run_dql(conn, "{ users(func: has(name)) { uid name } }")
+Dlex.run_dql(conn, "{ users(func: has(name)) { uid name } }", %{},
+  resp_format: :rdf,
+  return_metadata: true
+)
+
+# Allocate IDs and manage namespaces
+Dlex.allocate_ids!(conn, 100, :uid)
+namespace = Dlex.create_namespace!(conn).namespace
+Dlex.list_namespaces!(conn)
+Dlex.drop_namespace!(conn, namespace)
+```
+
+These administrative operations require the gRPC transport. The HTTP transport continues to support queries, mutations, schema alterations, and transaction commits.
+
 ### Alter schema
 
 Modification of schema supported with string and map form (which is returned by `query_schema`):
