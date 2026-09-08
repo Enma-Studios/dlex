@@ -102,6 +102,11 @@ defmodule Dlex.Adapters.GRPC do
   def admin(channel, :list_namespaces, request, _json_lib, opts),
     do: ApiStub.list_namespaces(channel, request, opts)
 
+  def admin(channel, :login, request, _json_lib, opts), do: ApiStub.login(channel, request, opts)
+
+  def admin(channel, :relogin, request, _json_lib, opts),
+    do: ApiStub.login(channel, request, opts)
+
   @impl true
   def commit_or_abort(channel, transaction, _json_lib, opts) do
     ApiStub.commit_or_abort(channel, transaction, opts)

@@ -112,6 +112,18 @@ defmodule DlexTest do
   end
 
   @tag :grpc
+  test "authentication operations reach Dgraph", %{pid: pid} do
+    assert {:error, %Dlex.Error{action: :execute, reason: %GRPC.RPCError{}}} =
+             Dlex.login(pid, "dgraph", "invalid-password")
+
+    assert {:error, %Dlex.Error{action: :execute, reason: %GRPC.RPCError{}}} =
+             Dlex.login_into_namespace(pid, "dgraph", "invalid-password", 0)
+
+    assert {:error, %Dlex.Error{action: :execute, reason: %GRPC.RPCError{}}} =
+             Dlex.relogin(pid, "invalid-refresh-token")
+  end
+
+  @tag :grpc
   test "fulltext and HNSW indexes", %{pid: pid} do
     Dlex.alter!(
       pid,

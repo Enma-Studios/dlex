@@ -98,6 +98,22 @@ Dlex.list_namespaces!(conn)
 Dlex.drop_namespace!(conn, namespace)
 ```
 
+### Authentication
+
+The gRPC transport exposes Dgraph login and refresh-token operations:
+
+```elixir
+tokens = Dlex.login!(conn, "alice", "password")
+tokens = Dlex.login_into_namespace!(conn, "alice", "password", 1)
+tokens = Dlex.relogin!(conn, tokens.refresh_jwt)
+```
+
+Pass the returned access token as a connection header when starting a pooled connection:
+
+```elixir
+Dlex.start_link(headers: [{"accessJwt", tokens.access_jwt}])
+```
+
 These administrative operations require the gRPC transport. The HTTP transport continues to support queries, mutations, schema alterations, and transaction commits.
 
 The `:resp_format` option accepts `:json` or `:rdf`; `:return_metadata` adds latency and UID

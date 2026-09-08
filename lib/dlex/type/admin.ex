@@ -2,6 +2,7 @@ defmodule Dlex.Type.Admin do
   @moduledoc false
 
   alias Dlex.{Adapter, Query}
+  alias Dlex.Api
   alias Dlex.Api.Response
 
   @behaviour Dlex.Type
@@ -31,6 +32,17 @@ defmodule Dlex.Type.Admin do
     else
       result
     end
+  end
+
+  def decode(
+        %Query{statement: %{operation: operation}},
+        %Response{json: jwt},
+        _opts
+      )
+      when operation in [:login, :relogin] and is_binary(jwt) do
+    jwt
+    |> Protobuf.decode(Api.Jwt)
+    |> response_to_map()
   end
 
   def decode(_query, response, _opts), do: response_to_map(response)

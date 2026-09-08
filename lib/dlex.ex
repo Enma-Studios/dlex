@@ -565,6 +565,77 @@ defmodule Dlex do
     end
   end
 
+  @doc """
+  Log in to Dgraph and return its access and refresh JWTs.
+
+  The access JWT can be sent on a connection by including
+  `headers: [{"accessJwt", access_jwt}]` in `start_link/1` options.
+  """
+  @spec login(conn, String.t(), String.t(), Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def login(conn, userid, password, opts \\ []) do
+    request = %Api.LoginRequest{
+      userid: userid,
+      password: password,
+      namespace: Keyword.get(opts, :namespace, 0)
+    }
+
+    admin(conn, :login, request, opts)
+  end
+
+  @doc """
+  Log in to Dgraph and raise on failure.
+  """
+  @spec login!(conn, String.t(), String.t(), Keyword.t()) :: map | no_return
+  def login!(conn, userid, password, opts \\ []) do
+    case login(conn, userid, password, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Log in to a Dgraph namespace and return its JWTs.
+  """
+  @spec login_into_namespace(conn, String.t(), String.t(), non_neg_integer(), Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def login_into_namespace(conn, userid, password, namespace, opts \\ []) do
+    login(conn, userid, password, Keyword.put(opts, :namespace, namespace))
+  end
+
+  @doc """
+  Log in to a Dgraph namespace and raise on failure.
+  """
+  @spec login_into_namespace!(conn, String.t(), String.t(), non_neg_integer(), Keyword.t()) ::
+          map | no_return
+  def login_into_namespace!(conn, userid, password, namespace, opts \\ []) do
+    case login_into_namespace(conn, userid, password, namespace, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Refresh a Dgraph access JWT using a refresh JWT.
+  """
+  @spec relogin(conn, String.t(), Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def relogin(conn, refresh_token, opts \\ []) do
+    request = %Api.LoginRequest{refresh_token: refresh_token}
+    admin(conn, :relogin, request, opts)
+  end
+
+  @doc """
+  Refresh a Dgraph access JWT and raise on failure.
+  """
+  @spec relogin!(conn, String.t(), Keyword.t()) :: map | no_return
+  def relogin!(conn, refresh_token, opts \\ []) do
+    case relogin(conn, refresh_token, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
   defp admin(conn, operation, request, opts) do
     query = %Query{
       type: Type.Admin,
