@@ -2,7 +2,7 @@ defmodule Dlex.Type.Mutation do
   @moduledoc false
 
   alias Dlex.{Adapter, Query, Utils}
-  alias Dlex.Api.{Response, Mutation, Request}
+  alias Dlex.Api.{NQuad, Response, Mutation, Request}
   alias Dlex.Type.Admin
 
   @behaviour Dlex.Type
@@ -55,19 +55,23 @@ defmodule Dlex.Type.Mutation do
   defp transaction_opts(%{start_ts: start_ts}), do: {false, start_ts}
   defp transaction_opts(nil), do: {true, 0}
 
+  defp infer_type([%NQuad{} | _]), do: :structured
   defp infer_type(%{}), do: :json
   defp infer_type([%{} | _]), do: :json
   defp infer_type(_), do: :iodata
 
   defp format(:iodata, statement, _), do: statement
   defp format(:json, statement, json_lib), do: json_lib.encode!(statement)
+  defp format(:structured, statement, _), do: statement
 
   # :iodata is :nquads if it set or delete
   defp mutation_key(:iodata, :cond), do: :cond
   defp mutation_key(:json, :set), do: :set_json
   defp mutation_key(:iodata, :set), do: :set_nquads
+  defp mutation_key(:structured, :set), do: :set
   defp mutation_key(:json, :delete), do: :delete_json
   defp mutation_key(:iodata, :delete), do: :del_nquads
+  defp mutation_key(:structured, :delete), do: :del
 
   defp parse_json(_json_lib, ""), do: %{}
   defp parse_json(_json_lib, nil), do: %{}

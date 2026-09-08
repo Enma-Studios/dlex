@@ -51,4 +51,26 @@ defmodule Dlex.TypeOperationTest do
     assert request.drop_all == false
     assert request.drop_attr == ""
   end
+
+  test "encodes structured NQuad mutations and facets" do
+    nquad =
+      Dlex.NQuad.uid("0x1", "friend", "0x2", facets: [Dlex.NQuad.boolean_facet("close", true)])
+
+    request =
+      Type.encode(
+        %Query{
+          type: Dlex.Type.Mutation,
+          statement: [%{set: [nquad]}],
+          query: ""
+        },
+        %{},
+        []
+      )
+
+    assert [%Dlex.Api.Mutation{set: [%Dlex.Api.NQuad{} = encoded]}] = request.mutations
+    assert encoded.subject == "0x1"
+    assert encoded.predicate == "friend"
+    assert encoded.object_id == "0x2"
+    assert [%Dlex.Api.Facet{key: "close", val_type: :BOOL, value: "true"}] = encoded.facets
+  end
 end

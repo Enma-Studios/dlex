@@ -14,6 +14,7 @@ defmodule DlexTest do
         email
         indexed_id
         location
+        structured_friend: [uid]
       }
 
       type Client {
@@ -41,6 +42,7 @@ defmodule DlexTest do
       balance: float .
       indexed_id: int @index(int) .
       location: geo @index(geo) .
+      structured_friend: [uid] .
     """
 
     Dlex.alter!(pid, schema)
@@ -157,12 +159,48 @@ defmodule DlexTest do
              )
   end
 
+  @tag :grpc
+  test "structured NQuad mutations and facets", %{pid: pid} do
+    %{uids: %{"structured_source" => source, "structured_target" => target}} =
+      Dlex.mutate!(pid, %{
+        set: [
+          %{"uid" => "_:structured_source", "name" => "Structured source"},
+          %{"uid" => "_:structured_target", "name" => "Structured target"}
+        ]
+      })
+
+    relationship =
+      Dlex.NQuad.uid(source, "structured_friend", target,
+        facets: [Dlex.NQuad.boolean_facet("close", true)]
+      )
+
+    assert %{uids: %{}} = Dlex.mutate!(pid, %{set: [relationship]})
+
+    assert %{
+             "source" => [%{"structured_friend" => [%{"name" => "Structured target"}]}]
+           } =
+             Dlex.query!(
+               pid,
+               "{source(func: uid(#{source})) {structured_friend @facets {name}}}"
+             )
+  end
+
   @tag :http
   test "HTTP rejects RDF response format", %{pid: pid} do
     assert {:error, %Dlex.Error{reason: %Dlex.Adapters.HTTP.Error{message: message}}} =
              Dlex.query(pid, "{ health(func: has(name)) { uid } }", %{}, resp_format: :rdf)
 
     assert message == "RDF responses require the gRPC transport"
+  end
+
+  @tag :http
+  test "HTTP rejects structured NQuad mutations", %{pid: pid} do
+    nquad = Dlex.NQuad.string("_:http_structured", "name", "HTTP structured")
+
+    assert {:error, %Dlex.Error{reason: %Dlex.Adapters.HTTP.Error{message: message}}} =
+             Dlex.mutate(pid, %{set: [nquad]})
+
+    assert message == "Structured NQuad mutations require the gRPC transport"
   end
 
   @tag :http

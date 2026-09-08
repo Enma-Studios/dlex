@@ -74,6 +74,16 @@ Dlex.query(conn, by_name, %{"$name" => "Betty"})
 Dlex.delete(conn, %{"uid" => uid})
 ```
 
+Structured NQuad mutations and facets are available through gRPC:
+
+```elixir
+edge = Dlex.NQuad.uid(source_uid, "friend", target_uid,
+  facets: [Dlex.NQuad.boolean_facet("close", true)]
+)
+
+Dlex.mutate!(conn, %{set: [edge]})
+```
+
 ### Dgraph v25 APIs
 
 The v25 gRPC API is available through the following helpers. Each helper has a bang variant

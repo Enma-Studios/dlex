@@ -116,16 +116,20 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
         type = mutation_type(mutation)
 
-        request = %Request{
-          action: :mutate,
-          start_ts: start_ts,
-          commit_now: request.commit_now,
-          json: json_lib,
-          headers: merge_headers(channel, content_type(type)),
-          body: build_mutations(mutations, type, json_lib, query, variables)
-        }
+        if type == :structured do
+          {:error, %Error{message: "Structured NQuad mutations require the gRPC transport"}}
+        else
+          request = %Request{
+            action: :mutate,
+            start_ts: start_ts,
+            commit_now: request.commit_now,
+            json: json_lib,
+            headers: merge_headers(channel, content_type(type)),
+            body: build_mutations(mutations, type, json_lib, query, variables)
+          }
 
-        handle_request(channel, request, opts)
+          handle_request(channel, request, opts)
+        end
       end
     end
 
@@ -200,6 +204,8 @@ if Code.ensure_loaded?(Mint.HTTP) do
       end)
     end
 
+    defp mutation_type(%{set: [_ | _]}), do: :structured
+    defp mutation_type(%{del: [_ | _]}), do: :structured
     defp mutation_type(%{set_nquads: "", del_nquads: ""}), do: :json
     defp mutation_type(%{set_json: "", delete_json: ""}), do: :nquads
 
