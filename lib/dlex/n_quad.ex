@@ -138,6 +138,17 @@ defmodule Dlex.NQuad do
   end
 
   @doc """
+  Build wildcard-delete NQuads for one or more predicates without executing them.
+
+  This is the Elixir equivalent of Dgraph Go's non-executing `DeleteEdges` helper.
+  """
+  def delete_edges(subject, predicates) when is_binary(predicates),
+    do: delete_edges(subject, [predicates])
+
+  def delete_edges(subject, predicates) when is_list(predicates),
+    do: Enum.map(predicates, &delete(subject, &1))
+
+  @doc """
   Build a raw structured NQuad.
   """
   def nquad(subject, predicate, opts \\ []) do

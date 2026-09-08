@@ -1,6 +1,10 @@
 defmodule Dlex.Field do
   @type type ::
-          :integer
+          :default
+          | :bool
+          | :password
+          | :bigfloat
+          | :integer
           | :float
           | :string
           | :geo

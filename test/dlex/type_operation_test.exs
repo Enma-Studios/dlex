@@ -97,4 +97,14 @@ defmodule Dlex.TypeOperationTest do
              {:vfloat32_val, <<5>>}
            ]
   end
+
+  test "builds non-executing wildcard DeleteEdges NQuads" do
+    assert [
+             %Dlex.Api.NQuad{subject: "0x1", predicate: "friend"} = friend,
+             %Dlex.Api.NQuad{subject: "0x1", predicate: "name"} = name
+           ] = Dlex.NQuad.delete_edges("0x1", ["friend", "name"])
+
+    assert friend.object_value.val == {:default_val, "_STAR_ALL"}
+    assert name.object_value.val == {:default_val, "_STAR_ALL"}
+  end
 end

@@ -83,6 +83,8 @@ edge = Dlex.NQuad.uid(source_uid, "friend", target_uid,
 
 Dlex.mutate!(conn, %{set: [edge]})
 Dlex.delete_edges!(conn, source_uid, "friend")
+# Build the same wildcard-delete NQuads without executing them:
+Dlex.NQuad.delete_edges(source_uid, ["friend", "name"])
 ```
 
 Abort a transaction from inside its callback with `Dlex.discard(conn, reason)` (or
