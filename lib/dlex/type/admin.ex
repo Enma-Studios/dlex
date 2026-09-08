@@ -84,9 +84,22 @@ defmodule Dlex.Type.Admin do
 
   defp response_to_map(response), do: response
 
-  def metadata(%Response{latency: latency, metrics: metrics}) do
-    %{latency: struct_to_map(latency), metrics: struct_to_map(metrics)}
+  def metadata(%Response{latency: latency, metrics: metrics, hdrs: hdrs}) do
+    %{
+      latency: struct_to_map(latency),
+      metrics: struct_to_map(metrics),
+      headers: response_headers(hdrs)
+    }
   end
+
+  defp response_headers(headers) when is_map(headers) do
+    Map.new(headers, fn
+      {key, %{value: values}} -> {key, values}
+      {key, values} -> {key, values}
+    end)
+  end
+
+  defp response_headers(_), do: %{}
 
   defp struct_to_map(nil), do: nil
 

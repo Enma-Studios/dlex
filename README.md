@@ -137,8 +137,8 @@ Dlex.start_link(headers: [{"accessJwt", tokens.access_jwt}])
 
 These administrative operations require the gRPC transport. The HTTP transport continues to support queries, mutations, schema alterations, and transaction commits.
 
-The `:resp_format` option accepts `:json` or `:rdf`; `:return_metadata` adds latency and UID
-metrics to the result. Both options are available on `query/4`, `mutate/4`, and `run_dql/4`, but
+The `:resp_format` option accepts `:json` or `:rdf`; `:return_metadata` adds latency, UID metrics,
+and response headers to the result. Both options are available on `query/4`, `mutate/4`, and `run_dql/4`, but
 RDF responses require gRPC. HTTP requests using `resp_format: :rdf` return an error.
 
 For example, the same response options can be used with a query or mutation:

@@ -45,4 +45,15 @@ defmodule Dlex.TypeAdminTest do
     assert Type.encode(refresh_query, %{}, []) ==
              {:relogin, %Dlex.Api.LoginRequest{refresh_token: "refresh-token"}}
   end
+
+  test "normalizes response headers into metadata" do
+    response = %Dlex.Api.Response{
+      hdrs: %{
+        "x-dgraph-test" => %Dlex.Api.ListOfString{value: ["one", "two"]}
+      }
+    }
+
+    assert %{headers: %{"x-dgraph-test" => ["one", "two"]}} =
+             Dlex.Type.Admin.metadata(response)
+  end
 end
