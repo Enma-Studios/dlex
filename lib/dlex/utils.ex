@@ -14,6 +14,9 @@ defmodule Dlex.Utils do
 
   defp encode_var(value), do: to_string(value)
 
+  @doc false
+  def encode_vector(value) when is_list(value), do: encode_var(value)
+
   @doc """
   Add temporary blank ids to json object
   """

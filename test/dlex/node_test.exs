@@ -86,6 +86,9 @@ defmodule Dlex.NodeTest do
         Ecto.Changeset.cast(%VectorDocument{}, %{embedding: [1.0, 0.0]}, [:embedding])
 
       assert changeset.valid?
+
+      assert %{"vector_document.embedding" => "[1.0, 0.0]"} =
+               Dlex.Repo.encode(%VectorDocument{embedding: [1.0, 0.0]})
     end
   end
 end

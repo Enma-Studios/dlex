@@ -145,7 +145,7 @@ Full-text search uses the `fulltext` tokenizer with DQL functions such as `allof
 Dlex.alter(conn, "body: string @index(fulltext) .\nembedding: float32vector @index(hnsw(metric:\"cosine\")) .")
 
 Dlex.mutate!(conn, %{
-  set: %{"body" => "quick brown fox", "embedding" => [1.0, 0.0]}
+  set: %{"body" => "quick brown fox", "embedding" => "[1.0, 0.0]"}
 })
 
 Dlex.query!(conn, "{docs(func: alloftext(body, \"quick brown\")) {uid body}}")
@@ -158,6 +158,7 @@ Dlex.query!(conn,
 
 The `Dlex.Node` schema DSL supports the same features. Use `:float32vector` for vector fields;
 `index: true` creates a default HNSW index, while a tokenizer string can specify HNSW options:
+typed `Dlex.Repo` mutations accept the vector as a float list and encode the backend literal.
 
 ```elixir
 field :body, :string, index: ["fulltext"]

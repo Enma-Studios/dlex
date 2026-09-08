@@ -121,11 +121,11 @@ defmodule DlexTest do
       set: [
         %{
           "search_text" => "quick brown fox",
-          "embedding" => [1.0, 0.0]
+          "embedding" => "[1.0, 0.0]"
         },
         %{
           "search_text" => "slow green turtle",
-          "embedding" => [0.0, 1.0]
+          "embedding" => "[0.0, 1.0]"
         }
       ]
     })

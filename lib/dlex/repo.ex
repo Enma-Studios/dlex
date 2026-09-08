@@ -189,6 +189,10 @@ defmodule Dlex.Repo do
       field_name == nil ->
         encode_kv(kv, map, struct)
 
+      type == :float32vector ->
+        map = Map.put(map, field_name, Utils.encode_vector(value))
+        encode_kv(kv, map, struct)
+
       Node.primitive_type?(type) ->
         map = Map.put(map, field_name, encode(value))
         encode_kv(kv, map, struct)
