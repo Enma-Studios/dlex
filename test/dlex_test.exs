@@ -114,6 +114,20 @@ defmodule DlexTest do
   end
 
   @tag :grpc
+  test "version and external snapshot service operations", %{pid: pid} do
+    assert %{tag: tag} = Dlex.check_version!(pid)
+    assert String.starts_with?(tag, "v25.")
+
+    assert %{groups: groups} =
+             Dlex.update_ext_snapshot_streaming_state!(pid, start: false, finish: false)
+
+    assert is_list(groups)
+
+    assert {:error, %Dlex.Error{action: :stream_ext_snapshot}} =
+             Dlex.stream_ext_snapshot(pid, [], timeout: 2_000)
+  end
+
+  @tag :grpc
   test "authentication operations reach Dgraph", %{pid: pid} do
     assert {:error, %Dlex.Error{action: :execute, reason: %GRPC.RPCError{}}} =
              Dlex.login(pid, "dgraph", "invalid-password")

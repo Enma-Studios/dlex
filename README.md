@@ -106,6 +106,12 @@ Dlex.allocate_ids!(conn, 100, :uid)
 namespace = Dlex.create_namespace!(conn).namespace
 Dlex.list_namespaces!(conn)
 Dlex.drop_namespace!(conn, namespace)
+
+# Check the server version
+Dlex.check_version!(conn)
+
+# Control external snapshot streaming (gRPC)
+Dlex.update_ext_snapshot_streaming_state!(conn, start: false, finish: false)
 ```
 
 ### Authentication

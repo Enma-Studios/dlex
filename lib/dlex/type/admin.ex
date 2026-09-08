@@ -45,6 +45,13 @@ defmodule Dlex.Type.Admin do
     |> response_to_map()
   end
 
+  def decode(
+        %Query{statement: %{operation: :stream_ext_snapshot}},
+        stream,
+        _opts
+      ),
+      do: stream
+
   def decode(_query, response, _opts), do: response_to_map(response)
 
   defp decode_response(%Response{rdf: rdf, json: json}, json_lib, opts) do

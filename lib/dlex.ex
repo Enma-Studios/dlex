@@ -6,7 +6,7 @@ defmodule Dlex do
   mutations and transactions.
   """
 
-  alias Dlex.{Query, Type}
+  alias Dlex.{Error, Query, Type}
   alias Dlex.Api
   alias Dlex.Utils
 
@@ -633,6 +633,122 @@ defmodule Dlex do
     case relogin(conn, refresh_token, opts) do
       {:ok, result} -> result
       {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Check the connected Dgraph server version.
+  """
+  @spec check_version(conn, Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def check_version(conn, opts \\ []) do
+    admin(conn, :check_version, %Api.Check{}, opts)
+  end
+
+  @doc """
+  Check the connected Dgraph server version and raise on failure.
+  """
+  @spec check_version!(conn, Keyword.t()) :: map | no_return
+  def check_version!(conn, opts \\ []) do
+    case check_version(conn, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Update Dgraph's external snapshot streaming state.
+
+  Options are `:start`, `:finish`, `:drop_data`, and `:timeout`.
+  """
+  @spec update_ext_snapshot_streaming_state(conn, Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def update_ext_snapshot_streaming_state(conn, opts \\ []) do
+    request = %Api.UpdateExtSnapshotStreamingStateRequest{
+      start: Keyword.get(opts, :start, false),
+      finish: Keyword.get(opts, :finish, false),
+      drop_data: Keyword.get(opts, :drop_data, false)
+    }
+
+    admin(conn, :update_ext_snapshot_streaming_state, request, opts)
+  end
+
+  @doc """
+  Update external snapshot streaming state and raise on failure.
+  """
+  @spec update_ext_snapshot_streaming_state!(conn, Keyword.t()) :: map | no_return
+  def update_ext_snapshot_streaming_state!(conn, opts \\ []) do
+    case update_ext_snapshot_streaming_state(conn, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Stream external snapshot packets through Dgraph and collect its responses.
+
+  The request list must contain `%Dlex.Api.StreamExtSnapshotRequest{}` structs. The connection is
+  held for the complete send/receive cycle so a pooled connection cannot be reused while the
+  stream is active.
+  """
+  @spec stream_ext_snapshot(conn, [struct], Keyword.t()) ::
+          {:ok, [struct]} | {:error, Dlex.Error.t() | term}
+  def stream_ext_snapshot(conn, requests, opts \\ []) do
+    result =
+      DBConnection.run(conn, fn db_conn ->
+        query = %Query{
+          type: Type.Admin,
+          statement: %{operation: :stream_ext_snapshot, request: nil}
+        }
+
+        case DBConnection.prepare_execute(db_conn, query, %{}, opts) do
+          {:ok, _, stream} ->
+            stream =
+              Enum.reduce(requests, stream, fn request, stream ->
+                GRPC.Stub.send_request(stream, request)
+              end)
+
+            stream = GRPC.Stub.end_stream(stream)
+
+            case GRPC.Stub.recv(stream, grpc_stream_opts(opts)) do
+              {:ok, response_stream} -> collect_stream_responses(response_stream)
+              {:error, reason} -> {:error, reason}
+            end
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+      end)
+
+    case result do
+      {:ok, responses} -> {:ok, responses}
+      {:error, %Error{} = error} -> {:error, error}
+      {:error, reason} -> {:error, %Error{action: :stream_ext_snapshot, reason: reason}}
+    end
+  end
+
+  @doc """
+  Stream external snapshot packets and raise on failure.
+  """
+  @spec stream_ext_snapshot!(conn, [struct], Keyword.t()) :: [struct] | no_return
+  def stream_ext_snapshot!(conn, requests, opts \\ []) do
+    case stream_ext_snapshot(conn, requests, opts) do
+      {:ok, responses} -> responses
+      {:error, error} -> raise error
+    end
+  end
+
+  defp grpc_stream_opts(opts), do: Keyword.take(opts, [:timeout, :deadline, :return_headers])
+
+  defp collect_stream_responses(response_stream) do
+    Enum.reduce_while(response_stream, [], fn
+      {:ok, response}, responses -> {:cont, [response | responses]}
+      {:trailers, _trailers}, responses -> {:cont, responses}
+      {:error, reason}, _responses -> {:halt, {:error, reason}}
+    end)
+    |> case do
+      responses when is_list(responses) -> {:ok, Enum.reverse(responses)}
+      error -> error
     end
   end
 

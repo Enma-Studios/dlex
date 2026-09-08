@@ -107,6 +107,15 @@ defmodule Dlex.Adapters.GRPC do
   def admin(channel, :relogin, request, _json_lib, opts),
     do: ApiStub.login(channel, request, opts)
 
+  def admin(channel, :check_version, request, _json_lib, opts),
+    do: ApiStub.check_version(channel, request, opts)
+
+  def admin(channel, :update_ext_snapshot_streaming_state, request, _json_lib, opts),
+    do: ApiStub.update_ext_snapshot_streaming_state(channel, request, opts)
+
+  def admin(channel, :stream_ext_snapshot, _request, _json_lib, opts),
+    do: {:ok, ApiStub.stream_ext_snapshot(channel, opts)}
+
   @impl true
   def commit_or_abort(channel, transaction, _json_lib, opts) do
     ApiStub.commit_or_abort(channel, transaction, opts)
