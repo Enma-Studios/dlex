@@ -47,6 +47,84 @@ defmodule Dlex.NQuad do
   end
 
   @doc """
+  Build a default-valued NQuad.
+  """
+  def default_value(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:default_val, value}, opts)
+  end
+
+  @doc """
+  Build a bytes-valued NQuad.
+  """
+  def bytes(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:bytes_val, value}, opts)
+  end
+
+  @doc """
+  Build a date-valued NQuad from its protobuf-encoded bytes.
+  """
+  def date(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:date_val, value}, opts)
+  end
+
+  @doc """
+  Build a datetime-valued NQuad from its protobuf-encoded bytes.
+  """
+  def datetime(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:datetime_val, value}, opts)
+  end
+
+  @doc """
+  Build a geo-valued NQuad from its WKB bytes.
+  """
+  def geo(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:geo_val, value}, opts)
+  end
+
+  @doc """
+  Build a password-valued NQuad.
+  """
+  def password(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:password_val, value}, opts)
+  end
+
+  @doc """
+  Build a bigfloat-valued NQuad from its protobuf-encoded bytes.
+  """
+  def bigfloat(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:bigfloat_val, value}, opts)
+  end
+
+  @doc """
+  Build a float32-vector NQuad from its protobuf-encoded bytes.
+  """
+  def vector(subject, predicate, value, opts \\ []) do
+    value(subject, predicate, {:vfloat32_val, value}, opts)
+  end
+
+  @doc """
+  Build an NQuad with any raw `Dlex.Api.Value` oneof field.
+  """
+  def value(subject, predicate, {field, value}, opts \\ [])
+      when field in [
+             :default_val,
+             :bytes_val,
+             :int_val,
+             :bool_val,
+             :str_val,
+             :double_val,
+             :geo_val,
+             :date_val,
+             :datetime_val,
+             :password_val,
+             :uid_val,
+             :bigfloat_val,
+             :vfloat32_val
+           ] do
+    nquad(subject, predicate, Keyword.merge(opts, object_value: %Value{val: {field, value}}))
+  end
+
+  @doc """
   Build a delete NQuad. With no `:object_id`, all values for the predicate are deleted.
   """
   def delete(subject, predicate, opts \\ []) do
