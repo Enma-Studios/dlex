@@ -171,16 +171,28 @@ defmodule Dlex.Protocol do
     %{adapter: adapter, channel: channel} = state
     timeout = Keyword.get(opts, :timeout, Keyword.get(state.opts, :timeout))
 
+    adapter_opts =
+      opts
+      |> Keyword.take([
+        :deadline,
+        :metadata,
+        :return_headers,
+        :compressor,
+        :accepted_compressors,
+        :dlex_access_jwt
+      ])
+      |> Keyword.put(:timeout, timeout)
+
     if state.txn_read_only? and query.type == Type.Mutation do
       error = %Error{action: :execute, reason: :read_only_transaction}
       {:error, error, state}
     else
-      execute_query(adapter, channel, query, request, timeout, state)
+      execute_query(adapter, channel, query, request, adapter_opts, state)
     end
   end
 
-  defp execute_query(adapter, channel, query, request, timeout, state) do
-    case Type.execute(adapter, channel, query, request, timeout: timeout) do
+  defp execute_query(adapter, channel, query, request, opts, state) do
+    case Type.execute(adapter, channel, query, request, opts) do
       {:ok, result} ->
         {:ok, query, result, check_txn(state, result)}
 

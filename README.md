@@ -125,7 +125,8 @@ tokens = Dlex.login_into_namespace!(conn, "alice", "password", 1)
 tokens = Dlex.relogin!(conn, tokens.refresh_jwt)
 ```
 
-Pass the returned access token as a connection header when starting a pooled connection:
+Login and relogin remember the access token for subsequent requests through the same pool. To
+start a pool with a token that was obtained elsewhere, pass it as a connection header:
 
 ```elixir
 Dlex.start_link(headers: [{"accessJwt", tokens.access_jwt}])

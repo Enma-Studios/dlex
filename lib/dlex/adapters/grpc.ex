@@ -73,51 +73,64 @@ defmodule Dlex.Adapters.GRPC do
 
   @impl true
   def alter(channel, request, _json_lib, opts) do
-    ApiStub.alter(channel, request, opts)
+    ApiStub.alter(channel, request, rpc_opts(opts))
   end
 
   @impl true
   def mutate(channel, request, _json_lib, opts) do
-    ApiStub.query(channel, request, opts)
+    ApiStub.query(channel, request, rpc_opts(opts))
   end
 
   @impl true
   def query(channel, request, _json_lib, opts) do
-    ApiStub.query(channel, request, opts)
+    ApiStub.query(channel, request, rpc_opts(opts))
   end
 
   @impl true
   def admin(channel, :run_dql, request, _json_lib, opts),
-    do: ApiStub.run_dql(channel, request, opts)
+    do: ApiStub.run_dql(channel, request, rpc_opts(opts))
 
   def admin(channel, :allocate_ids, request, _json_lib, opts),
-    do: ApiStub.allocate_i_ds(channel, request, opts)
+    do: ApiStub.allocate_i_ds(channel, request, rpc_opts(opts))
 
   def admin(channel, :create_namespace, request, _json_lib, opts),
-    do: ApiStub.create_namespace(channel, request, opts)
+    do: ApiStub.create_namespace(channel, request, rpc_opts(opts))
 
   def admin(channel, :drop_namespace, request, _json_lib, opts),
-    do: ApiStub.drop_namespace(channel, request, opts)
+    do: ApiStub.drop_namespace(channel, request, rpc_opts(opts))
 
   def admin(channel, :list_namespaces, request, _json_lib, opts),
-    do: ApiStub.list_namespaces(channel, request, opts)
+    do: ApiStub.list_namespaces(channel, request, rpc_opts(opts))
 
-  def admin(channel, :login, request, _json_lib, opts), do: ApiStub.login(channel, request, opts)
+  def admin(channel, :login, request, _json_lib, opts),
+    do: ApiStub.login(channel, request, rpc_opts(opts))
 
   def admin(channel, :relogin, request, _json_lib, opts),
-    do: ApiStub.login(channel, request, opts)
+    do: ApiStub.login(channel, request, rpc_opts(opts))
 
   def admin(channel, :check_version, request, _json_lib, opts),
-    do: ApiStub.check_version(channel, request, opts)
+    do: ApiStub.check_version(channel, request, rpc_opts(opts))
 
   def admin(channel, :update_ext_snapshot_streaming_state, request, _json_lib, opts),
-    do: ApiStub.update_ext_snapshot_streaming_state(channel, request, opts)
+    do: ApiStub.update_ext_snapshot_streaming_state(channel, request, rpc_opts(opts))
 
   def admin(channel, :stream_ext_snapshot, _request, _json_lib, opts),
-    do: {:ok, ApiStub.stream_ext_snapshot(channel, opts)}
+    do: {:ok, ApiStub.stream_ext_snapshot(channel, rpc_opts(opts))}
 
   @impl true
   def commit_or_abort(channel, transaction, _json_lib, opts) do
-    ApiStub.commit_or_abort(channel, transaction, opts)
+    ApiStub.commit_or_abort(channel, transaction, rpc_opts(opts))
+  end
+
+  defp rpc_opts(opts) do
+    access_jwt = Keyword.get(opts, :dlex_access_jwt)
+    opts = Keyword.delete(opts, :dlex_access_jwt)
+
+    if access_jwt do
+      metadata = opts |> Keyword.get(:metadata, %{}) |> Map.put("accessJwt", access_jwt)
+      Keyword.put(opts, :metadata, metadata)
+    else
+      opts
+    end
   end
 end

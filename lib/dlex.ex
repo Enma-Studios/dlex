@@ -117,7 +117,7 @@ defmodule Dlex do
   def alter(conn, statement, opts \\ []) do
     query = %Query{type: Type.Operation, statement: statement}
 
-    with {:ok, _, result} <- DBConnection.prepare_execute(conn, query, %{}, opts),
+    with {:ok, _, result} <- prepare_execute(conn, query, %{}, opts),
          do: {:ok, result}
   end
 
@@ -268,7 +268,7 @@ defmodule Dlex do
     query_vars = Map.get(query_map, :vars, %{})
     query = %Query{type: Type.Mutation, statement: List.wrap(mutations), query: query_statement}
 
-    with {:ok, _, result} <- DBConnection.prepare_execute(conn, query, query_vars, opts),
+    with {:ok, _, result} <- prepare_execute(conn, query, query_vars, opts),
          do: {:ok, result}
   end
 
@@ -460,7 +460,7 @@ defmodule Dlex do
   def query(conn, statement, parameters \\ %{}, opts \\ []) do
     query = %Query{type: Type.Query, statement: statement}
 
-    with {:ok, _, result} <- DBConnection.prepare_execute(conn, query, parameters, opts),
+    with {:ok, _, result} <- prepare_execute(conn, query, parameters, opts),
          do: {:ok, result}
   end
 
@@ -609,7 +609,10 @@ defmodule Dlex do
       namespace: Keyword.get(opts, :namespace, 0)
     }
 
-    admin(conn, :login, request, opts)
+    with {:ok, tokens} <- admin(conn, :login, request, opts) do
+      store_access_token(conn, tokens)
+      {:ok, tokens}
+    end
   end
 
   @doc """
@@ -651,7 +654,11 @@ defmodule Dlex do
           {:ok, map} | {:error, Dlex.Error.t() | term}
   def relogin(conn, refresh_token, opts \\ []) do
     request = %Api.LoginRequest{refresh_token: refresh_token}
-    admin(conn, :relogin, request, opts)
+
+    with {:ok, tokens} <- admin(conn, :relogin, request, opts) do
+      store_access_token(conn, tokens)
+      {:ok, tokens}
+    end
   end
 
   @doc """
@@ -787,8 +794,52 @@ defmodule Dlex do
       statement: %{operation: operation, request: request}
     }
 
-    with {:ok, _, result} <- DBConnection.prepare_execute(conn, query, %{}, opts),
+    with {:ok, _, result} <- prepare_execute(conn, query, %{}, opts),
          do: {:ok, result}
+  end
+
+  defp prepare_execute(conn, query, parameters, opts) do
+    opts =
+      case access_token(conn) do
+        nil -> opts
+        token -> Keyword.put_new(opts, :dlex_access_jwt, token)
+      end
+
+    DBConnection.prepare_execute(conn, query, parameters, opts)
+  end
+
+  @auth_table :dlex_auth_tokens
+
+  defp store_access_token(conn, %{access_jwt: access_jwt}) when access_jwt not in [nil, ""] do
+    table = ensure_auth_table()
+    :ets.insert(table, {auth_key(conn), access_jwt})
+    :ok
+  end
+
+  defp store_access_token(_conn, _tokens), do: :ok
+
+  defp access_token(conn) do
+    case :ets.lookup(ensure_auth_table(), auth_key(conn)) do
+      [{_, token}] -> token
+      [] -> nil
+    end
+  end
+
+  defp auth_key(%DBConnection{pool_ref: pool_ref}), do: pool_ref
+  defp auth_key(conn), do: conn
+
+  defp ensure_auth_table do
+    case :ets.whereis(@auth_table) do
+      :undefined ->
+        try do
+          :ets.new(@auth_table, [:named_table, :public, :set, read_concurrency: true])
+        catch
+          :error, :badarg -> @auth_table
+        end
+
+      _table ->
+        @auth_table
+    end
   end
 
   defp response_format(:rdf), do: :RDF

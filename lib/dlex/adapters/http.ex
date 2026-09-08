@@ -75,7 +75,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
         action: :alter,
         start_ts: 0,
         json: json_lib,
-        headers: merge_headers(channel, headers),
+        headers: merge_headers(channel, request_headers(opts, headers)),
         body: body
       }
 
@@ -124,7 +124,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
             start_ts: start_ts,
             commit_now: request.commit_now,
             json: json_lib,
-            headers: merge_headers(channel, content_type(type)),
+            headers: merge_headers(channel, request_headers(opts, content_type(type))),
             body: build_mutations(mutations, type, json_lib, query, variables)
           }
 
@@ -226,7 +226,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
           action: :query,
           start_ts: start_ts,
           json: json_lib,
-          headers: merge_headers(channel, content_type(:json)),
+          headers: merge_headers(channel, request_headers(opts, content_type(:json))),
           body: json_lib.encode!(%{"variables" => vars, "query" => to_string(query)}),
           read_only: read_only,
           best_effort: best_effort
@@ -247,7 +247,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
         action: :commit,
         start_ts: start_ts,
         json: json_lib,
-        headers: merge_headers(channel, content_type(:json)),
+        headers: merge_headers(channel, request_headers(opts, content_type(:json))),
         body: json_lib.encode!(keys)
       }
 
@@ -304,6 +304,13 @@ if Code.ensure_loaded?(Mint.HTTP) do
 
     defp merge_headers(%{headers: default_headers}, headers), do: default_headers ++ headers
     defp merge_headers(_channel, headers), do: headers
+
+    defp request_headers(opts, headers) do
+      case Keyword.get(opts, :dlex_access_jwt) do
+        nil -> headers
+        access_jwt -> [{"accessJwt", access_jwt} | headers]
+      end
+    end
 
     defp handle_response(channel, json_lib, action, body) do
       response = json_lib.decode!(body)
