@@ -20,7 +20,8 @@ defmodule Dlex.Type.Query do
         %Query{
           statement: statement,
           read_only: query_read_only?,
-          best_effort: query_best_effort?
+          best_effort: query_best_effort?,
+          txn_context: txn_context
         },
         vars,
         opts
@@ -28,10 +29,12 @@ defmodule Dlex.Type.Query do
     best_effort? = query_best_effort? or Keyword.get(opts, :best_effort, false)
 
     struct(Request,
+      start_ts: transaction_start_ts(txn_context),
       query: IO.iodata_to_binary(statement),
       vars: Utils.encode_vars(vars),
       read_only: query_read_only? or Keyword.get(opts, :read_only, false) or best_effort?,
       best_effort: best_effort?,
+      hash: transaction_hash(txn_context),
       resp_format: response_format(Keyword.get(opts, :resp_format, :json))
     )
   end
@@ -63,4 +66,10 @@ defmodule Dlex.Type.Query do
   defp response_format(:json), do: :JSON
   defp response_format(:RDF), do: :RDF
   defp response_format(:JSON), do: :JSON
+
+  defp transaction_hash(%{hash: hash}), do: hash
+  defp transaction_hash(_), do: ""
+
+  defp transaction_start_ts(%{start_ts: start_ts}), do: start_ts
+  defp transaction_start_ts(_), do: 0
 end

@@ -36,6 +36,7 @@ defmodule Dlex.Type.Mutation do
       mutations: mutations(mutations, json),
       query: IO.iodata_to_binary(query),
       vars: Utils.encode_vars(vars),
+      hash: transaction_hash(txn),
       resp_format: response_format(Keyword.get(opts, :resp_format, :json))
     )
   end
@@ -112,4 +113,7 @@ defmodule Dlex.Type.Mutation do
   defp response_format(:json), do: :JSON
   defp response_format(:RDF), do: :RDF
   defp response_format(:JSON), do: :JSON
+
+  defp transaction_hash(%{hash: hash}), do: hash
+  defp transaction_hash(_), do: ""
 end

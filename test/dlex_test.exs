@@ -302,6 +302,13 @@ defmodule DlexTest do
              end)
   end
 
+  test "query-only transactions complete without mutations", %{pid: pid} do
+    assert {:ok, %{"seeded" => [%{"name" => "seeded_read_only"}]}} =
+             Dlex.transaction(pid, fn conn ->
+               Dlex.query!(conn, "{seeded(func: eq(name, \"seeded_read_only\")) {name}}")
+             end)
+  end
+
   test "transactions can be explicitly discarded", %{pid: pid} do
     assert {:error, :discarded} =
              Dlex.transaction(pid, fn conn ->

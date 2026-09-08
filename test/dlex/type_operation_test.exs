@@ -34,6 +34,38 @@ defmodule Dlex.TypeOperationTest do
     assert request.vars == %{"$vec" => "[1.0, 0.0]"}
   end
 
+  test "propagates transaction hashes on query and mutation requests" do
+    txn = %Dlex.Api.TxnContext{start_ts: 42, hash: "txn-hash"}
+
+    query_request =
+      Type.encode(
+        %Query{
+          type: Dlex.Type.Query,
+          statement: "{node(func: has(name)) {uid}}",
+          txn_context: txn
+        },
+        %{},
+        []
+      )
+
+    mutation_request =
+      Type.encode(
+        %Query{
+          type: Dlex.Type.Mutation,
+          statement: [%{set: "_:node <name> \"value\" ."}],
+          query: "",
+          txn_context: txn
+        },
+        %{},
+        []
+      )
+
+    assert query_request.start_ts == 42
+    assert query_request.hash == "txn-hash"
+    assert mutation_request.start_ts == 42
+    assert mutation_request.hash == "txn-hash"
+  end
+
   test "encodes all alter operation controls" do
     query =
       Type.describe(

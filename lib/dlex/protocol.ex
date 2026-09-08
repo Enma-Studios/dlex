@@ -16,6 +16,7 @@ defmodule Dlex.Protocol do
     :opts,
     :txn_context,
     txn_aborted?: false,
+    txn_mutated?: false,
     txn_read_only?: false,
     txn_best_effort?: false
   ]
@@ -81,6 +82,7 @@ defmodule Dlex.Protocol do
        state
        | txn_context: %TxnContext{},
          txn_aborted?: false,
+         txn_mutated?: false,
          txn_read_only?: read_only?,
          txn_best_effort?: best_effort?
      }}
@@ -99,10 +101,12 @@ defmodule Dlex.Protocol do
   defp finish_txn(state, txn_result, opts) do
     txn_context = state.txn_context
     txn_read_only? = state.txn_read_only?
+    txn_mutated? = state.txn_mutated?
 
     state = %{
       state
       | txn_context: nil,
+        txn_mutated?: false,
         txn_read_only?: false,
         txn_best_effort?: false
     }
@@ -110,7 +114,7 @@ defmodule Dlex.Protocol do
     timeout = Keyword.get(opts, :timeout, @timeout)
     txn_context = %{txn_context | aborted: txn_result != :commit}
 
-    if txn_read_only? or txn_context.start_ts == 0 do
+    if txn_read_only? or not txn_mutated? do
       {:ok, txn_context, state}
     else
       commit_or_abort(state, txn_context, txn_result, timeout)
@@ -187,6 +191,11 @@ defmodule Dlex.Protocol do
       error = %Error{action: :execute, reason: :read_only_transaction}
       {:error, error, state}
     else
+      state =
+        if state.txn_context != nil and query.type == Type.Mutation,
+          do: %{state | txn_mutated?: true},
+          else: state
+
       execute_query(adapter, channel, query, request, adapter_opts, state)
     end
   end
@@ -224,11 +233,15 @@ defmodule Dlex.Protocol do
 
   defp merge_txn(%{txn_context: %TxnContext{} = txn_context} = state, new_txn_context) do
     %{start_ts: start_ts, keys: keys, preds: preds} = txn_context
-    %{start_ts: new_start_ts, keys: new_keys, preds: new_preds} = new_txn_context
+    %{start_ts: new_start_ts, keys: new_keys, preds: new_preds, hash: new_hash} = new_txn_context
     start_ts = if start_ts == 0, do: new_start_ts, else: start_ts
     keys = keys ++ new_keys
     preds = preds ++ new_preds
-    %{state | txn_context: %{txn_context | start_ts: start_ts, keys: keys, preds: preds}}
+
+    %{
+      state
+      | txn_context: %{txn_context | start_ts: start_ts, keys: keys, preds: preds, hash: new_hash}
+    }
   end
 
   @impl true
