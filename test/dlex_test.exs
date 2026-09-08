@@ -197,6 +197,11 @@ defmodule DlexTest do
                pid,
                "{source(func: uid(#{source})) {structured_friend @facets {name}}}"
              )
+
+    assert %{uids: %{}} = Dlex.delete_edges!(pid, source, "structured_friend")
+
+    assert %{"source" => []} =
+             Dlex.query!(pid, "{source(func: uid(#{source})) {structured_friend {uid}}}")
   end
 
   @tag :http

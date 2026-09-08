@@ -50,13 +50,13 @@ defmodule Dlex.NQuad do
   Build a delete NQuad. With no `:object_id`, all values for the predicate are deleted.
   """
   def delete(subject, predicate, opts \\ []) do
-    %NQuad{
-      subject: subject,
-      predicate: predicate,
-      object_id: Keyword.get(opts, :object_id, "_STAR_ALL"),
-      facets: Keyword.get(opts, :facets, []),
-      namespace: Keyword.get(opts, :namespace, 0)
-    }
+    object =
+      case Keyword.fetch(opts, :object_id) do
+        {:ok, object_id} -> [object_id: object_id]
+        :error -> [object_value: %Value{val: {:default_val, "_STAR_ALL"}}]
+      end
+
+    nquad(subject, predicate, Keyword.merge(opts, object))
   end
 
   @doc """

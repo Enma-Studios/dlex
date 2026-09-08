@@ -405,6 +405,35 @@ defmodule Dlex do
   end
 
   @doc """
+  Delete all values of one or more predicates from a UID.
+
+  This is the structured NQuad equivalent of Dgraph Go's `Txn.DeleteEdges` helper.
+  """
+  @spec delete_edges(conn, uid, [String.t()] | String.t(), Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  def delete_edges(conn, uid, predicates \\ ["*"], opts \\ [])
+
+  def delete_edges(conn, uid, predicates, opts) when is_binary(predicates) do
+    delete_edges(conn, uid, [predicates], opts)
+  end
+
+  def delete_edges(conn, uid, predicates, opts) when is_list(predicates) do
+    nquads = Enum.map(predicates, &Dlex.NQuad.delete(uid, &1))
+    mutate(conn, %{delete: nquads}, opts)
+  end
+
+  @doc """
+  Delete all values of one or more predicates from a UID and raise on failure.
+  """
+  @spec delete_edges!(conn, uid, [String.t()] | String.t(), Keyword.t()) :: map | no_return
+  def delete_edges!(conn, uid, predicates, opts \\ []) do
+    case delete_edges(conn, uid, predicates, opts) do
+      {:ok, result} -> result
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
   Send query to dgraph
 
   Example of usage

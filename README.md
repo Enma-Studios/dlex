@@ -82,6 +82,7 @@ edge = Dlex.NQuad.uid(source_uid, "friend", target_uid,
 )
 
 Dlex.mutate!(conn, %{set: [edge]})
+Dlex.delete_edges!(conn, source_uid, "friend")
 ```
 
 ### Dgraph v25 APIs
