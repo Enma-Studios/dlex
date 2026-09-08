@@ -152,6 +152,16 @@ defmodule DlexTest do
     assert message == "RDF responses require the gRPC transport"
   end
 
+  @tag :http
+  test "HTTP returns query metadata", %{pid: pid} do
+    assert {:ok, %{result: %{"metadata_query" => _}, metadata: %{latency: latency}}} =
+             Dlex.query(pid, "{metadata_query(func: has(name)) {uid}}", %{},
+               return_metadata: true
+             )
+
+    assert is_map(latency)
+  end
+
   test "mutation nquads", %{pid: pid} do
     assert %{uids: %{"luke" => uid_luke, "leia" => _uid_leia, "sw1" => _uid_sw1}} =
              Dlex.set!(pid, @mutation_nquads)
@@ -227,6 +237,19 @@ defmodule DlexTest do
     Dlex.alter!(pid, [surname_predicate])
     {:ok, %{"schema" => schema}} = Dlex.query_schema(pid)
     assert surname_predicate == Enum.find(schema, &(&1["predicate"] == "surname"))
+  end
+
+  test "alter drop operation controls", %{pid: pid} do
+    predicate = "drop_surface_test"
+    Dlex.alter!(pid, "#{predicate}: string .")
+
+    assert {:ok, %{"schema" => schema}} = Dlex.query_schema(pid)
+    assert Enum.any?(schema, &(&1["predicate"] == predicate))
+
+    Dlex.alter!(pid, %{drop_op: :attr, drop_value: predicate})
+
+    assert {:ok, %{"schema" => schema}} = Dlex.query_schema(pid)
+    refute Enum.any?(schema, &(&1["predicate"] == predicate))
   end
 
   test "malformed query", %{pid: pid} do
