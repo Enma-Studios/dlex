@@ -25,12 +25,30 @@ defmodule Dlex.Type.Operation do
     |> Map.put_new(:schema, "")
     |> Map.put_new(:drop_attr, "")
     |> Map.put_new(:drop_all, false)
+    |> Map.put_new(:drop_op, :NONE)
+    |> Map.put_new(:drop_value, "")
+    |> Map.put_new(:run_in_background, false)
   end
 
   @impl true
   def encode(%Query{statement: statement}, _, _) do
-    %{drop_all: drop_all, schema: schema, drop_attr: drop_attr} = statement
-    struct(Operation, drop_all: drop_all, schema: encode_schema(schema), drop_attr: drop_attr)
+    %{
+      drop_all: drop_all,
+      schema: schema,
+      drop_attr: drop_attr,
+      drop_op: drop_op,
+      drop_value: drop_value,
+      run_in_background: run_in_background
+    } = statement
+
+    struct(Operation,
+      drop_all: drop_all,
+      schema: encode_schema(schema),
+      drop_attr: drop_attr,
+      drop_op: normalize_drop_op(drop_op),
+      drop_value: drop_value,
+      run_in_background: run_in_background
+    )
   end
 
   @impl true
@@ -85,4 +103,15 @@ defmodule Dlex.Type.Operation do
 
   def render_key({"index", true}, tokenizers), do: "@index(#{Enum.join(tokenizers, ", ")})"
   def render_key({key, true}, _), do: "@#{key}"
+
+  defp normalize_drop_op(nil), do: :NONE
+  defp normalize_drop_op(:none), do: :NONE
+  defp normalize_drop_op(:all), do: :ALL
+  defp normalize_drop_op(:data), do: :DATA
+  defp normalize_drop_op(:attr), do: :ATTR
+  defp normalize_drop_op(:type), do: :TYPE
+  defp normalize_drop_op(value) when value in [:NONE, :ALL, :DATA, :ATTR, :TYPE], do: value
+
+  defp normalize_drop_op(value) when is_binary(value),
+    do: value |> String.upcase() |> String.to_atom()
 end

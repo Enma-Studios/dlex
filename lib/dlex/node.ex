@@ -38,10 +38,15 @@ defmodule Dlex.Node do
 
       * `:integer`
       * `:float`
+      * `:bool`
+      * `:default`
+      * `:password`
+      * `:bigfloat`
       * `:string`
       * `:geo`
       * `:datetime`
       * `:uid`
+      * `:float32vector` - an ordered list of 32-bit floats, indexable with HNSW
       * `:auto` - special type, which can be used for `depends_on`
 
   ## Reflection
@@ -177,6 +182,11 @@ defmodule Dlex.Node do
   end
 
   defp ecto_type(:datetime), do: :utc_datetime
+  defp ecto_type(:bool), do: :boolean
+  defp ecto_type(:default), do: :string
+  defp ecto_type(:password), do: :string
+  defp ecto_type(:bigfloat), do: :any
+  defp ecto_type(:float32vector), do: {:array, :float}
   defp ecto_type(type), do: type
 
   defmacro field(name, type, opts \\ []) do
@@ -234,12 +244,17 @@ defmodule Dlex.Node do
   end
 
   @types_mapping [
+    default: "default",
     integer: "int",
     float: "float",
+    bool: "bool",
+    password: "password",
+    bigfloat: "bigfloat",
     string: "string",
     geo: "geo",
     datetime: "datetime",
-    uid: "[uid]"
+    uid: "[uid]",
+    float32vector: "float32vector"
   ]
 
   for {type, dgraph_type} <- @types_mapping do
@@ -255,10 +270,12 @@ defmodule Dlex.Node do
 
   @ignore_keys [:default, :depends_on]
   defp gen_opt({key, _value}, _type) when key in @ignore_keys, do: []
+  defp gen_opt({:index, true}, :float32vector), do: [{"index", true}, {"tokenizer", ["hnsw"]}]
   defp gen_opt({:index, true}, type), do: [{"index", true}, {"tokenizer", [db_type(type)]}]
 
-  defp gen_opt({:index, tokenizers}, :string) when is_list(tokenizers),
-    do: [{"index", true}, {"tokenizer", tokenizers}]
+  defp gen_opt({:index, tokenizers}, type)
+       when type in [:string, :float32vector] and is_list(tokenizers),
+       do: [{"index", true}, {"tokenizer", tokenizers}]
 
   defp gen_opt({key, value}, _type), do: [{Atom.to_string(key), value}]
 end

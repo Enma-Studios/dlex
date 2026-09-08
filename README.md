@@ -137,6 +137,33 @@ Dlex.alter(conn, [
 ])
 ```
 
+Full-text search uses the `fulltext` tokenizer with DQL functions such as `alloftext/2` and
+`anyoftext/2`. HNSW vector search is available through the `float32vector` type and
+`similar_to/3`:
+
+```elixir
+Dlex.alter(conn, "body: string @index(fulltext) .\nembedding: float32vector @index(hnsw(metric:\"cosine\")) .")
+
+Dlex.mutate!(conn, %{
+  set: %{"body" => "quick brown fox", "embedding" => [1.0, 0.0]}
+})
+
+Dlex.query!(conn, "{docs(func: alloftext(body, \"quick brown\")) {uid body}}")
+
+Dlex.query!(conn,
+  "query similar($vector: float32vector) {docs(func: similar_to(embedding, 1, $vector)) {uid body}}",
+  %{"$vector" => [1.0, 0.0]}
+)
+```
+
+The `Dlex.Node` schema DSL supports the same features. Use `:float32vector` for vector fields;
+`index: true` creates a default HNSW index, while a tokenizer string can specify HNSW options:
+
+```elixir
+field :body, :string, index: ["fulltext"]
+field :embedding, :float32vector, index: ["hnsw(metric:\"cosine\", exponent:\"4\")"]
+```
+
 ## Developers guide
 
 ### Running tests

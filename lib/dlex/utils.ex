@@ -3,8 +3,16 @@ defmodule Dlex.Utils do
   Encode variables
   """
   def encode_vars(vars) do
-    for {key, value} <- vars, into: %{}, do: {key, to_string(value)}
+    for {key, value} <- vars, into: %{}, do: {key, encode_var(value)}
   end
+
+  # Dgraph's gRPC and HTTP query APIs expose variables as strings. Vector query
+  # variables are the exception at the DQL level: they must be represented as
+  # a float32vector literal rather than passed through List.to_string/1.
+  defp encode_var(value) when is_list(value),
+    do: "[" <> Enum.map_join(value, ", ", &encode_var/1) <> "]"
+
+  defp encode_var(value), do: to_string(value)
 
   @doc """
   Add temporary blank ids to json object

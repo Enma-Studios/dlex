@@ -19,7 +19,8 @@ defmodule Dlex.Adapters.GRPC do
   defp gen_stub_options(opts) do
     stub_opts = [
       adapter: GRPC.Client.Adapters.Mint,
-      adapter_opts: [retry: 5]
+      adapter_opts: [retry: 5],
+      headers: Keyword.get(opts, :headers, [])
     ]
 
     case gen_ssl_config(opts) do

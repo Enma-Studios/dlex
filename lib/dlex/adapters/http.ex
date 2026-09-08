@@ -29,10 +29,31 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     @impl true
-    def connect(host, port, _opts \\ []) do
-      case Mint.HTTP.connect(:http, host, port, mode: :passive) do
-        {:ok, conn} -> {:ok, %{conn: conn, host: host, port: port}}
-        {:error, error} -> {:error, error}
+    def connect(host, port, opts \\ []) do
+      scheme =
+        if Keyword.get(opts, :https, false) or Keyword.has_key?(opts, :cacertfile),
+          do: :https,
+          else: :http
+
+      transport_opts =
+        Keyword.take(opts, [:cacertfile, :certfile, :keyfile, :verify, :server_name_indication])
+
+      connect_opts = [mode: :passive, transport_opts: transport_opts]
+
+      case Mint.HTTP.connect(scheme, host, port, connect_opts) do
+        {:ok, conn} ->
+          {:ok,
+           %{
+             conn: conn,
+             host: host,
+             port: port,
+             scheme: scheme,
+             transport_opts: transport_opts,
+             headers: Keyword.get(opts, :headers, [])
+           }}
+
+        {:error, error} ->
+          {:error, error}
       end
     end
 
@@ -54,14 +75,25 @@ if Code.ensure_loaded?(Mint.HTTP) do
         action: :alter,
         start_ts: 0,
         json: json_lib,
-        headers: headers,
+        headers: merge_headers(channel, headers),
         body: body
       }
 
       handle_request(channel, request, opts)
     end
 
-    defp alter_body(%{schema: schema}, _json_lib) when schema not in [nil, ""] do
+    defp alter_body(
+           %{
+             schema: schema,
+             drop_attr: "",
+             drop_all: false,
+             drop_op: :NONE,
+             drop_value: "",
+             run_in_background: false
+           },
+           _json_lib
+         )
+         when schema not in [nil, ""] do
       {content_type(:nquads), schema}
     end
 
@@ -89,7 +121,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
           start_ts: start_ts,
           commit_now: request.commit_now,
           json: json_lib,
-          headers: content_type(type),
+          headers: merge_headers(channel, content_type(type)),
           body: build_mutations(mutations, type, json_lib, query, variables)
         }
 
@@ -188,7 +220,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
           action: :query,
           start_ts: start_ts,
           json: json_lib,
-          headers: content_type(:json),
+          headers: merge_headers(channel, content_type(:json)),
           body: json_lib.encode!(%{"variables" => vars, "query" => to_string(query)}),
           read_only: read_only,
           best_effort: best_effort
@@ -209,7 +241,7 @@ if Code.ensure_loaded?(Mint.HTTP) do
         action: :commit,
         start_ts: start_ts,
         json: json_lib,
-        headers: content_type(:json),
+        headers: merge_headers(channel, content_type(:json)),
         body: json_lib.encode!(keys)
       }
 
@@ -264,6 +296,9 @@ if Code.ensure_loaded?(Mint.HTTP) do
     defp path(:query), do: "/query"
     defp path(:commit), do: "/commit"
 
+    defp merge_headers(%{headers: default_headers}, headers), do: default_headers ++ headers
+    defp merge_headers(_channel, headers), do: headers
+
     defp handle_response(channel, json_lib, action, body) do
       response = json_lib.decode!(body)
 
@@ -281,16 +316,45 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp parse_success(:mutate, %{"data" => %{"uids" => uids, "queries" => queries}} = response) do
-      struct(Dlex.Api.Response, txn: parse_txn(response), uids: uids, json: queries)
+      struct(Dlex.Api.Response,
+        txn: parse_txn(response),
+        uids: uids,
+        json: queries,
+        latency: parse_latency(response),
+        metrics: parse_metrics(response)
+      )
     end
 
     defp parse_success(:query, %{"data" => data} = response) do
-      struct(Dlex.Api.Response, txn: parse_txn(response), json: data)
+      struct(Dlex.Api.Response,
+        txn: parse_txn(response),
+        json: data,
+        latency: parse_latency(response),
+        metrics: parse_metrics(response)
+      )
     end
 
     defp parse_success(:commit, response) do
       parse_txn(response)
     end
+
+    defp parse_latency(%{"extensions" => %{"server_latency" => latency}}) do
+      struct(Dlex.Api.Latency,
+        parsing_ns: Map.get(latency, "parsing_ns", 0),
+        processing_ns: Map.get(latency, "processing_ns", 0),
+        encoding_ns: Map.get(latency, "encoding_ns", 0),
+        assign_timestamp_ns: Map.get(latency, "assign_timestamp_ns", 0),
+        total_ns: Map.get(latency, "total_ns", 0)
+      )
+    end
+
+    defp parse_latency(_), do: nil
+
+    defp parse_metrics(%{"extensions" => %{"metrics" => %{"num_uids" => num_uids}}}) do
+      struct(Dlex.Api.Metrics, num_uids: num_uids)
+    end
+
+    defp parse_metrics(_), do: nil
 
     defp parse_txn(json, aborted \\ false)
 
@@ -346,7 +410,10 @@ if Code.ensure_loaded?(Mint.HTTP) do
     end
 
     defp conn_request(%{host: host, port: port} = channel, method, path, headers, body, timeout) do
-      case Mint.HTTP.connect(:http, host, port, mode: :passive) do
+      case Mint.HTTP.connect(channel.scheme, host, port,
+             mode: :passive,
+             transport_opts: channel.transport_opts
+           ) do
         {:ok, conn} ->
           channel = %{channel | conn: conn, host: host, port: port}
           do_request(channel, method, path, headers, body, timeout, false)

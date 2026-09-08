@@ -110,6 +110,40 @@ defmodule DlexTest do
     assert %{} = Dlex.drop_namespace!(pid, namespace)
   end
 
+  @tag :grpc
+  test "fulltext and HNSW indexes", %{pid: pid} do
+    Dlex.alter!(
+      pid,
+      "search_text: string @index(fulltext) .\nembedding: float32vector @index(hnsw(metric:\"cosine\")) ."
+    )
+
+    Dlex.mutate!(pid, %{
+      set: [
+        %{
+          "search_text" => "quick brown fox",
+          "embedding" => [1.0, 0.0]
+        },
+        %{
+          "search_text" => "slow green turtle",
+          "embedding" => [0.0, 1.0]
+        }
+      ]
+    })
+
+    assert %{"search" => [%{"search_text" => "quick brown fox"}]} =
+             Dlex.query!(
+               pid,
+               "{search(func: alloftext(search_text, \"quick brown\")) {search_text}}"
+             )
+
+    assert %{"similar" => [%{"search_text" => "quick brown fox"}]} =
+             Dlex.query!(
+               pid,
+               "query similar($vec: float32vector) {similar(func: similar_to(embedding, 1, $vec)) {search_text}}",
+               %{"$vec" => [1.0, 0.0]}
+             )
+  end
+
   @tag :http
   test "HTTP rejects RDF response format", %{pid: pid} do
     assert {:error, %Dlex.Error{reason: %Dlex.Adapters.HTTP.Error{message: message}}} =
