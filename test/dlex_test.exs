@@ -302,6 +302,13 @@ defmodule DlexTest do
              end)
   end
 
+  test "transactions can be explicitly discarded", %{pid: pid} do
+    assert {:error, :discarded} =
+             Dlex.transaction(pid, fn conn ->
+               Dlex.discard(conn, :discarded)
+             end)
+  end
+
   test "deletion", %{pid: pid} do
     assert %{json: %{"uid" => uid}} =
              Dlex.set!(pid, %{"name" => "deletion_test", "dgraph.type" => "CastMember"},

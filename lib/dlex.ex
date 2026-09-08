@@ -879,6 +879,20 @@ defmodule Dlex do
   end
 
   @doc """
+  Abort the current transaction and return `reason` from `transaction/3`.
+
+  This is the explicit equivalent of Dgraph Go's `Txn.Discard` for a Dlex transaction callback.
+  """
+  @spec discard(DBConnection.t(), term()) :: no_return
+  def discard(conn, reason \\ :discard), do: DBConnection.rollback(conn, reason)
+
+  @doc """
+  Alias for `discard/2`.
+  """
+  @spec rollback(DBConnection.t(), term()) :: no_return
+  def rollback(conn, reason \\ :rollback), do: discard(conn, reason)
+
+  @doc """
   Run a transaction that can only issue read operations.
 
   The transaction is never committed remotely, matching Dgraph's read-only transaction

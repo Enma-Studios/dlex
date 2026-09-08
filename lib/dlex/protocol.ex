@@ -110,7 +110,7 @@ defmodule Dlex.Protocol do
     timeout = Keyword.get(opts, :timeout, @timeout)
     txn_context = %{txn_context | aborted: txn_result != :commit}
 
-    if txn_read_only? do
+    if txn_read_only? or txn_context.start_ts == 0 do
       {:ok, txn_context, state}
     else
       commit_or_abort(state, txn_context, txn_result, timeout)

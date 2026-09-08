@@ -85,6 +85,9 @@ Dlex.mutate!(conn, %{set: [edge]})
 Dlex.delete_edges!(conn, source_uid, "friend")
 ```
 
+Abort a transaction from inside its callback with `Dlex.discard(conn, reason)` (or
+`Dlex.rollback/2`).
+
 ### Dgraph v25 APIs
 
 The v25 gRPC API is available through the following helpers. Each helper has a bang variant
