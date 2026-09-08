@@ -610,4 +610,25 @@ defmodule Dlex do
         {:error, error}
     end
   end
+
+  @doc """
+  Run a transaction that can only issue read operations.
+
+  The transaction is never committed remotely, matching Dgraph's read-only transaction
+  behavior. `:best_effort` may be enabled with the options passed to this function.
+  """
+  @spec read_only_transaction(conn, (DBConnection.t() -> result :: any), Keyword.t()) ::
+          {:ok, result :: any} | {:error, any}
+  def read_only_transaction(conn, fun, opts \\ []) do
+    transaction(conn, fun, Keyword.put(opts, :read_only, true))
+  end
+
+  @doc """
+  Run a best-effort read-only transaction.
+  """
+  @spec best_effort_transaction(conn, (DBConnection.t() -> result :: any), Keyword.t()) ::
+          {:ok, result :: any} | {:error, any}
+  def best_effort_transaction(conn, fun, opts \\ []) do
+    transaction(conn, fun, Keyword.merge(opts, read_only: true, best_effort: true))
+  end
 end

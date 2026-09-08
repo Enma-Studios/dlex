@@ -44,6 +44,7 @@ defmodule DlexTest do
     """
 
     Dlex.alter!(pid, schema)
+    Dlex.set!(pid, %{"name" => "seeded_read_only", "dgraph.type" => "User"})
     %{pid: pid}
   end
 
@@ -213,6 +214,23 @@ defmodule DlexTest do
     %{"balance" => balance1} = get_by_name(pid, "client1")
     %{"balance" => balance2} = get_by_name(pid, "client2")
     assert balance1 + balance2 == 2000
+  end
+
+  test "read-only and best-effort transactions", %{pid: pid} do
+    assert {:ok, %{"seeded" => [%{"name" => "seeded_read_only"}]}} =
+             Dlex.read_only_transaction(pid, fn conn ->
+               Dlex.query!(conn, "{seeded(func: eq(name, \"seeded_read_only\")) {name}}")
+             end)
+
+    assert {:ok, %{"seeded" => [%{"name" => "seeded_read_only"}]}} =
+             Dlex.best_effort_transaction(pid, fn conn ->
+               Dlex.query!(conn, "{seeded(func: eq(name, \"seeded_read_only\")) {name}}")
+             end)
+
+    assert {:error, %Dlex.Error{action: :execute, reason: :read_only_transaction}} =
+             Dlex.read_only_transaction(pid, fn conn ->
+               Dlex.set!(conn, %{"name" => "read_only_mutation"})
+             end)
   end
 
   test "deletion", %{pid: pid} do

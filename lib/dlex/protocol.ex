@@ -8,7 +8,17 @@ defmodule Dlex.Protocol do
 
   require Logger
 
-  defstruct [:adapter, :channel, :connected, :json, :opts, :txn_context, txn_aborted?: false]
+  defstruct [
+    :adapter,
+    :channel,
+    :connected,
+    :json,
+    :opts,
+    :txn_context,
+    txn_aborted?: false,
+    txn_read_only?: false,
+    txn_best_effort?: false
+  ]
 
   @timeout 15_000
 
@@ -62,8 +72,18 @@ defmodule Dlex.Protocol do
   ## Transaction API
 
   @impl true
-  def handle_begin(_opts, state) do
-    {:ok, nil, %{state | txn_context: %TxnContext{}, txn_aborted?: false}}
+  def handle_begin(opts, state) do
+    best_effort? = Keyword.get(opts, :best_effort, false)
+    read_only? = Keyword.get(opts, :read_only, false) or best_effort?
+
+    {:ok, nil,
+     %{
+       state
+       | txn_context: %TxnContext{},
+         txn_aborted?: false,
+         txn_read_only?: read_only?,
+         txn_best_effort?: best_effort?
+     }}
   end
 
   @impl true
@@ -77,11 +97,32 @@ defmodule Dlex.Protocol do
   end
 
   defp finish_txn(state, txn_result, opts) do
-    %{adapter: adapter, channel: channel, json: json_lib, txn_context: txn_context} = state
-    state = %{state | txn_context: nil}
+    txn_context = state.txn_context
+    txn_read_only? = state.txn_read_only?
+
+    state = %{
+      state
+      | txn_context: nil,
+        txn_read_only?: false,
+        txn_best_effort?: false
+    }
+
     timeout = Keyword.get(opts, :timeout, @timeout)
     txn_context = %{txn_context | aborted: txn_result != :commit}
 
+    if txn_read_only? do
+      {:ok, txn_context, state}
+    else
+      commit_or_abort(state, txn_context, txn_result, timeout)
+    end
+  end
+
+  defp commit_or_abort(
+         %{adapter: adapter, channel: channel, json: json_lib} = state,
+         txn_context,
+         txn_result,
+         timeout
+       ) do
     case Adapter.commit_or_abort(adapter, channel, txn_context, json_lib, timeout: timeout) do
       {:ok, txn} ->
         {:ok, txn, state}
@@ -102,8 +143,27 @@ defmodule Dlex.Protocol do
   ## Query API
 
   @impl true
-  def handle_prepare(query, _opts, %{json: json_lib, txn_context: txn_context} = state) do
-    {:ok, %{query | json: json_lib, txn_context: txn_context}, state}
+  def handle_prepare(
+        query,
+        opts,
+        %{
+          json: json_lib,
+          txn_context: txn_context,
+          txn_read_only?: txn_read_only?,
+          txn_best_effort?: txn_best_effort?
+        } = state
+      ) do
+    read_only? = txn_read_only? or Keyword.get(opts, :read_only, false)
+    best_effort? = txn_best_effort? or Keyword.get(opts, :best_effort, false)
+
+    {:ok,
+     %{
+       query
+       | json: json_lib,
+         txn_context: txn_context,
+         read_only: read_only?,
+         best_effort: best_effort?
+     }, state}
   end
 
   @impl true
@@ -111,6 +171,15 @@ defmodule Dlex.Protocol do
     %{adapter: adapter, channel: channel} = state
     timeout = Keyword.get(opts, :timeout, Keyword.get(state.opts, :timeout))
 
+    if state.txn_read_only? and query.type == Type.Mutation do
+      error = %Error{action: :execute, reason: :read_only_transaction}
+      {:error, error, state}
+    else
+      execute_query(adapter, channel, query, request, timeout, state)
+    end
+  end
+
+  defp execute_query(adapter, channel, query, request, timeout, state) do
     case Type.execute(adapter, channel, query, request, timeout: timeout) do
       {:ok, result} ->
         {:ok, query, result, check_txn(state, result)}

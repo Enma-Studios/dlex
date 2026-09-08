@@ -13,11 +13,23 @@ defmodule Dlex.Query do
           statement: [mutation] | map | iodata,
           parameters: any,
           txn_context: Diex.Api.TxnContext.t(),
+          read_only: boolean,
+          best_effort: boolean,
           json: atom,
           request: any
         }
 
-  defstruct [:type, :query, :parameters, :statement, :json, :request, :txn_context]
+  defstruct [
+    :type,
+    :query,
+    :parameters,
+    :statement,
+    :json,
+    :request,
+    :txn_context,
+    read_only: false,
+    best_effort: false
+  ]
 
   @type request :: any
   @callback request(t) :: request

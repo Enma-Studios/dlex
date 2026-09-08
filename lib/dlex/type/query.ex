@@ -16,12 +16,22 @@ defmodule Dlex.Type.Query do
   def describe(query, _opts), do: query
 
   @impl true
-  def encode(%Query{statement: statement}, vars, opts) do
+  def encode(
+        %Query{
+          statement: statement,
+          read_only: query_read_only?,
+          best_effort: query_best_effort?
+        },
+        vars,
+        opts
+      ) do
+    best_effort? = query_best_effort? or Keyword.get(opts, :best_effort, false)
+
     struct(Request,
       query: IO.iodata_to_binary(statement),
       vars: Utils.encode_vars(vars),
-      read_only: Keyword.get(opts, :read_only, false),
-      best_effort: Keyword.get(opts, :best_effort, false),
+      read_only: query_read_only? or Keyword.get(opts, :read_only, false) or best_effort?,
+      best_effort: best_effort?,
       resp_format: response_format(Keyword.get(opts, :resp_format, :json))
     )
   end
