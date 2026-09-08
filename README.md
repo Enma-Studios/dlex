@@ -125,10 +125,12 @@ The gRPC transport exposes Dgraph login and refresh-token operations:
 ```elixir
 tokens = Dlex.login!(conn, "alice", "password")
 tokens = Dlex.login_into_namespace!(conn, "alice", "password", 1)
-tokens = Dlex.relogin!(conn, tokens.refresh_jwt)
+tokens = Dlex.relogin!(conn)
 ```
 
-Login and relogin remember the access token for subsequent requests through the same pool. To
+Login and relogin remember both JWTs for subsequent requests through the same pool. `Dlex.get_jwt/1`
+returns the retained `%{access_jwt: ..., refresh_jwt: ...}` bundle, and `Dlex.relogin/1` uses its
+refresh token. To
 start a pool with a token that was obtained elsewhere, pass it as a connection header:
 
 ```elixir

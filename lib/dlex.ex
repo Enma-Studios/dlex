@@ -649,10 +649,32 @@ defmodule Dlex do
 
   @doc """
   Refresh a Dgraph access JWT using a refresh JWT.
+
+  When called with only the connection, the refresh JWT retained by the most recent
+  successful login is used, matching Dgraph Go's `Relogin` behavior.
   """
+  @spec relogin(conn, Keyword.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
+  @spec relogin(conn, String.t()) ::
+          {:ok, map} | {:error, Dlex.Error.t() | term}
   @spec relogin(conn, String.t(), Keyword.t()) ::
           {:ok, map} | {:error, Dlex.Error.t() | term}
-  def relogin(conn, refresh_token, opts \\ []) do
+  def relogin(conn, opts \\ [])
+
+  def relogin(conn, opts) when is_list(opts) do
+    case get_jwt(conn) do
+      %{refresh_jwt: refresh_token} when refresh_token not in [nil, ""] ->
+        relogin(conn, refresh_token, opts)
+
+      _jwt ->
+        {:error, %Error{action: :login, reason: "refresh jwt should not be empty"}}
+    end
+  end
+
+  def relogin(conn, refresh_token) when is_binary(refresh_token),
+    do: relogin(conn, refresh_token, [])
+
+  def relogin(conn, refresh_token, opts) do
     request = %Api.LoginRequest{refresh_token: refresh_token}
 
     with {:ok, tokens} <- admin(conn, :relogin, request, opts) do
@@ -662,13 +684,35 @@ defmodule Dlex do
   end
 
   @doc """
-  Refresh a Dgraph access JWT and raise on failure.
+  Refresh a Dgraph access JWT and raise on failure. With no refresh token argument,
+  the token retained by the most recent successful login is used.
   """
+  @spec relogin!(conn, Keyword.t()) :: map | no_return
+  @spec relogin!(conn, String.t()) :: map | no_return
   @spec relogin!(conn, String.t(), Keyword.t()) :: map | no_return
-  def relogin!(conn, refresh_token, opts \\ []) do
-    case relogin(conn, refresh_token, opts) do
-      {:ok, result} -> result
-      {:error, error} -> raise error
+  def relogin!(conn, opts \\ [])
+
+  def relogin!(conn, opts) when is_list(opts), do: raise_on_error(relogin(conn, opts))
+
+  def relogin!(conn, refresh_token) when is_binary(refresh_token),
+    do: raise_on_error(relogin(conn, refresh_token))
+
+  def relogin!(conn, refresh_token, opts), do: raise_on_error(relogin(conn, refresh_token, opts))
+
+  defp raise_on_error({:ok, result}), do: result
+  defp raise_on_error({:error, error}), do: raise(error)
+
+  @doc """
+  Return the JWT bundle retained for the connection's pool.
+
+  The result contains `:access_jwt` and `:refresh_jwt`, or empty strings when the
+  connection has not logged in yet.
+  """
+  @spec get_jwt(conn) :: %{access_jwt: String.t(), refresh_jwt: String.t()}
+  def get_jwt(conn) do
+    case :ets.lookup(ensure_auth_table(), auth_key(conn)) do
+      [{_, jwt}] -> jwt
+      [] -> %{access_jwt: "", refresh_jwt: ""}
     end
   end
 
@@ -810,18 +854,19 @@ defmodule Dlex do
 
   @auth_table :dlex_auth_tokens
 
-  defp store_access_token(conn, %{access_jwt: access_jwt}) when access_jwt not in [nil, ""] do
+  defp store_access_token(conn, %{access_jwt: access_jwt} = tokens)
+       when access_jwt not in [nil, ""] do
     table = ensure_auth_table()
-    :ets.insert(table, {auth_key(conn), access_jwt})
+    :ets.insert(table, {auth_key(conn), Map.take(tokens, [:access_jwt, :refresh_jwt])})
     :ok
   end
 
   defp store_access_token(_conn, _tokens), do: :ok
 
   defp access_token(conn) do
-    case :ets.lookup(ensure_auth_table(), auth_key(conn)) do
-      [{_, token}] -> token
-      [] -> nil
+    case get_jwt(conn) do
+      %{access_jwt: token} when token not in [nil, ""] -> token
+      _jwt -> nil
     end
   end
 
